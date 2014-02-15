@@ -72,6 +72,11 @@ char *curly = ":D";
 #include "driver-bflsc.h"
 #endif
 
+#ifdef USE_SPONDOOLIES
+#include "driver-spondoolies.h"
+#endif
+
+
 #ifdef USE_BITFURY
 #include "driver-bitfury.h"
 #endif
@@ -1056,6 +1061,15 @@ static char *set_api_mcast_des(const char *arg)
 	return NULL;
 }
 
+
+#ifdef USE_SPONDOOLIES
+static char *set_spondoolies_options(const char *arg)
+{
+	return NULL;
+}
+#endif
+
+
 #ifdef USE_ICARUS
 static char *set_icarus_options(const char *arg)
 {
@@ -1646,6 +1660,9 @@ static char *opt_verusage_and_exit(const char *extra)
 #endif
 #ifdef USE_MODMINER
 		"modminer "
+#endif
+#ifdef USE_SPONDOOLIES
+		"spondoolies "
 #endif
 		"mining support.\n"
 		, packagename);
@@ -8008,6 +8025,11 @@ void enable_curses(void) {
 	statusy = logstart;
 	unlock_curses();
 }
+#endif
+
+
+#ifdef USE_SPONDOOLIES
+extern struct device_drv spondoolies_drv;
 #endif
 
 static int cgminer_id_count = 0;

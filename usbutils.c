@@ -114,6 +114,7 @@ static struct usb_intinfo bas_ints[] = {
 };
 #endif
 
+
 #ifdef USE_BITFORCE
 // N.B. transfer size is 512 with USB2.0, but only 64 with USB1.1
 static struct usb_epinfo bfl_epinfos[] = {
