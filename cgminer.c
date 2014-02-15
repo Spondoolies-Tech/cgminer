@@ -6593,26 +6593,36 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 {
 	struct work *work_out;
 	update_work_stats(thr, work);
+	printf("%s, %d\n",__FUNCTION__, __LINE__);
 
 	if (!fulltest(work->hash, work->target)) {
+		printf("%s, %d\n",__FUNCTION__, __LINE__);
 		applog(LOG_INFO, "%s %d: Share above target", thr->cgpu->drv->name,
 		       thr->cgpu->device_id);
 		return false;
 	}
+	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	work_out = copy_work(work);
+	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	submit_work_async(work_out);
+	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	return true;
 }
 
 /* Returns true if nonce for work was a valid share */
 bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
-	if (test_nonce(work, nonce))
+	printf("%s, %d\n",__FUNCTION__, __LINE__);
+
+	if (test_nonce(work, nonce)) {
+		printf("%s, %d\n",__FUNCTION__, __LINE__);
 		submit_tested_work(thr, work);
-	else {
+	} else {
+		printf("%s, %d\n",__FUNCTION__, __LINE__);
 		inc_hw_errors(thr);
 		return false;
 	}
+	printf("%s, %d\n",__FUNCTION__, __LINE__);
 
 	if (opt_benchfile && opt_benchfile_display)
 		benchfile_dspwork(work, nonce);

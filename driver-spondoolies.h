@@ -47,12 +47,10 @@ struct spond_adapter {
     int works_in_minergate;
     int current_job_id; // 0 to 0xFF
     int socket_fd;
-    minergate_packet* mp_req;// = allocate_minergate_packet(10000, 0xca, 0xfe);
-    minergate_data* m_data_req;
+    minergate_req_packet* mp_req;// = allocate_minergate_packet(10000, 0xca, 0xfe);
     int parse_resp;
-    minergate_packet* mp_rsp;// = allocate_minergate_packet(10000, 0xca, 0xfe);
+    minergate_rsp_packet* mp_rsp;// = allocate_minergate_packet(10000, 0xca, 0xfe);
     spond_driver_work minergate_work[0x100]; 
-
 };
 
 
@@ -63,7 +61,7 @@ int spond_do_scaling(struct spond_adapter *a);
 extern void one_sec_spondoolies_watchdog(int uptime);
 
 #define REQUEST_PERIOD 50000  // 20 times per second
-#define REQUEST_SIZE   25      // 45 jobs per request
+#define REQUEST_SIZE   25      // 25 jobs per request
 
 
 

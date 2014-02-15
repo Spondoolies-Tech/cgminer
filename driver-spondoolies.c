@@ -50,17 +50,18 @@ static inline void swap32yes(void*out, const void*in, size_t sz) {
 		(((uint32_t*)out)[swapcounter]) = swab32(((uint32_t*)in)[swapcounter]);
 }
 
-void send_minergate_pkt(const minergate_packet* mp_req, 
-						minergate_packet* mp_rsp,
+
+void send_minergate_pkt(const minergate_req_packet* mp_req, 
+						minergate_rsp_packet* mp_rsp,
 						int  socket_fd) {
 	int 	nbytes;		
-	write(socket_fd, (const void*)mp_req, mp_req->data_length + MINERGATE_PACKET_HEADER_SIZE);
-	nbytes = read(socket_fd, (void*)mp_rsp, 40000);	
-	assert(nbytes > 0);
+	write(socket_fd, (const void*)mp_req, sizeof(minergate_req_packet));
+	nbytes = read(socket_fd, (void*)mp_rsp, sizeof(minergate_rsp_packet));	
+	passert(nbytes > 0);
 	//printf("got %d(%d) bytes\n",mp_rsp->data_length, nbytes);
-	assert(mp_rsp->magic == 0xcafe);
-	assert((mp_rsp->data_length + MINERGATE_PACKET_HEADER_SIZE) == nbytes);
+	passert(mp_rsp->magic == 0xcafe);
 }
+
 
 
 static bool spondoolies_prepare(struct thr_info *thr)
@@ -165,7 +166,7 @@ int init_socket() {
 }
 
 
-static void spondoolies_detect()
+static void spondoolies_detect(__maybe_unused bool hotplug)
 {
 	int success;
 	struct spond_adapter *a;
@@ -209,16 +210,9 @@ static void spondoolies_detect()
 	a = cgpu->device_data;
 	a->cgpu = (void*)cgpu;
 	a->adapter_state = ADAPTER_STATE_OPERATIONAL;
-    a->mp_req = allocate_minergate_packet(
-        REQUEST_SIZE*sizeof(minergate_do_job_req) + MINERGATE_DATA_HEADER_SIZE,
+    a->mp_req = allocate_minergate_packet_req(
         0xca, 0xfe);
-    a->m_data_req = get_minergate_data(
-        a->mp_req,   
-        REQUEST_SIZE*sizeof(minergate_do_job_req), 
-        MINERGATE_DATA_ID_DO_JOB_REQ);
-    a->mp_rsp = allocate_minergate_packet(
-        (2*MINERGATE_TOTAL_QUEUE*sizeof(minergate_do_job_rsp)) + 
-        MINERGATE_DATA_HEADER_SIZE, 
+    a->mp_rsp = allocate_minergate_packet_rsp(
         0xca, 0xfe);
      
 
@@ -284,71 +278,7 @@ unsigned char get_leading_zeroes(const unsigned char *target) {
 
 
 
-#if 0
-static int64_t spondoolies_scanhash(
-	struct cgpu_info* cgpu,
-	struct work *work)
-{
-    /*
-	//printf("WALLA spondoolies_scanhash %d %d !!!!\n", thr->device_thread, thr->id);
-	applog(LOG_DEBUG, "SPOND spondoolies_scanhash %d", work->id);
-	struct spond_adapter *a = cgpu->device_data;
-	bool rc;
-	
-	//printf("THR 2:%p %p %p\n", work->thr, thr, thr->cgpu);
-	// TEST VECTOR
-	//uint32_t nonce;
-	LOCAL_swap32le(unsigned char, work->midstate, 32/4)
-	LOCAL_swap32le(unsigned char, work->data+64, 64/4)
-#if (SKIP_REAL_WORK	== 0)
 
-	minergate_do_job_req* spond_w = &a->current_spond_works[work->subid];
-	//spond_w->app_data  = work;
-	//spond_w->app_data2 = cgpu;
-#endif
-	static unsigned int last_print_time = 0;
-	//printf("--------- WORK: %x %x %x %x\n", *((int*)work->data + 64), *((int*)work->data + 64 + 4), *((int*)work->data + 64 + 8),  *((int*)work->data + 64 + 12));
-	//pthread_mutex_lock(&spond_mutex);
-
-	//uint32_t *nonce = (uint32_t *)(work->data + 64 + 12);
-	//static int work_id = 1;
-#if (SKIP_REAL_WORK	== 0)
-	// Initialize and pass data for the library
-	swap32yes(spond_w->data_tail64, work->data + 64, 64/4);
-    spond_w.difficulty = 0;
-    spond_w.timestamp  = 0;      
-    spond_w.mrkle_root = 0;
-	memcpy(spond_w->midstate, work->midstate, 32);
-	spond_w->leading_zeroes = get_leading_zeroes(work->target);
-	printf("LEADING ZEROES:%d\n", spond_w->leading_zeroes);
-	spond_w->work_id = work->subid;
-	spond_w->work_state = SPOND_WORK_STATE_WAITING;
-	spond_give_work(spond_w);
-	
-	//pthread_mutex_unlock(&spond_mutex);
-	//if(spond_w->work_state == SPOND_WORK_STATE_FOUND_NONCE) {
-	
-	
-	
-#else 
-	usleep((rand()%2)*1000+2000+(rand()%500)); // 2-4 milli
-#endif
-
-
-	//work->blk.nonce = max_nonce;
-	//static int i = 0;
-    applog(LOG_DEBUG, "SPOND spondoolies_scanhash %d:%d done", work->id, work->subid);
-
-	// Gather all threads before BIST
-	*/
-
-    
-
-	return 0;	
-
-	
-}
-#endif
 static int64_t spondoolies_scanhash(
 	struct cgpu_info* cgpu,
 	struct work *work)
@@ -408,66 +338,6 @@ void fill_minergate_work(minergate_do_job_req* work, struct work *cg_work) {
 
 
 
-int minergate_data_processor(minergate_data* md, void* c, void* c2) {
-	//printf("Got %d %d %d\n",md->data_id,md->data_length,md->magic);
-    struct spond_adapter* a = c;
-    
-    if (md->data_id == MINERGATE_DATA_ID_DO_JOB_RSP) {        
-           //DBG(DBG_NET, "GOT minergate_do_job_req: %x/%x\n", sizeof(minergate_do_job_req), md->data_length);
-           int array_size = md->data_length / sizeof(minergate_do_job_rsp);
-           assert(md->data_length % sizeof(minergate_do_job_rsp) == 0);
-           int i;
-           for (i = 0; i < array_size; i++) { // walk the jobs
-               //printf("j");
-               minergate_do_job_rsp* work = ((minergate_do_job_rsp*)md->data) + i;
-               int job_id =  work->work_id_in_sw;
-               //printf("!!!! HERE %d!\n",job_id);
-            
-               struct work *cg_work = a->minergate_work[job_id].cgminer_work;
-               //a->minergate_work[job_id].cgminer_work.nonce1
-                //printf("!!!! HERE %d! %p %p\n",job_id, a->cgpu, a->minergate_work[job_id].cgminer_work);
-                if ((a->minergate_work[job_id].cgminer_work)) {
-                    a->works_in_minergate--;
-                    a->works_in_driver--;
-                    assert(a->minergate_work[job_id].state == SPONDWORK_STATE_IN_MINERGATE);
-                    if (a->minergate_work[job_id].merkel_root == work->mrkle_root) {
-                        
-                        //printf("!!!! HERE GOOD!! %d %x!\n",job_id, work->winner_nonce);
-                        
-                        if (work->winner_nonce) {
-                           int r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
-                           printf("!!!!!!!  WIN !!!!!!!!!!!!!!!!!!!!!\nSUBMISSION WORK RSP:%d\n", r);
-                        }
-
-                        //printf("!!!! <) %p %p \n",
-                        //a->cgpu, a->minergate_work[job_id].cgminer_work,
-                        //a->minergate_work[job_id].cgminer_work->subid);
-                        work_completed(a->cgpu, a->minergate_work[job_id].cgminer_work);
-                        
-                        // a->minergate_work[job_id].cgminer_work = NULL;
-                    } else {
-                        printf("!!!! HERE BAD!! %d! (%x %x)\n",job_id,
-                            a->minergate_work[job_id].merkel_root, 
-                            work->mrkle_root);
-                        //assert(0);
-                    }
-                    //
-                    //printf("!!!! HERE %d!\n",job_id);
-
-                    a->minergate_work[job_id].cgminer_work = NULL;
-                    //a->minergate_work[a->current_job_id].job_id = 0;
-                    //a->minergate_work[a->current_job_id].start_time = time();
-                    a->minergate_work[job_id].state = SPONDWORK_STATE_EMPTY;
-                    //printf("!!!! HERE FULL! id:%d res:%d!\n",job_id, work->res);     
-                } else {
-                    printf("!HERE EMPTY! id:%d res:%d!\n",job_id, work->res);
-                    //assert(0);
-                }
-           }
-       }
-}
-
-
 
 
 
@@ -508,14 +378,13 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 	}
 
     // Get pointer for the request
-    minergate_do_job_req* minergate_work = 
-        ((minergate_do_job_req*)(a->m_data_req->data)) + a->works_pending_tx;
+    minergate_do_job_req* minergate_work =  a->mp_req->req + a->works_pending_tx;
 
     work->subid = a->current_job_id;
     if (a->minergate_work[a->current_job_id].cgminer_work) {
         assert(a->minergate_work[a->current_job_id].state == SPONDWORK_STATE_IN_MINERGATE);
         work_completed(cgpu, a->minergate_work[a->current_job_id].cgminer_work);
-        printf("X");
+        printf("X0X ");
         a->works_in_driver--;
         a->works_in_minergate--;
         a->minergate_work[a->current_job_id].cgminer_work = NULL;
@@ -527,6 +396,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
     a->minergate_work[a->current_job_id].state = SPONDWORK_STATE_IN_MINERGATE;
     //printf("Prepare %d %d\n", a->works_pending_tx, a->current_job_id);
     fill_minergate_work(minergate_work, work);
+	a->mp_req->req_count++;
     a->minergate_work[a->current_job_id].merkel_root = minergate_work->mrkle_root;
 /*        printf("WRK: MID:%x MID:%x  LEAD:%d %x\n", 
         work->midstate[0], 
@@ -545,7 +415,9 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
         //     a->works_in_minergate, a->works_pending_tx, a->works_in_driver);
          
         // printf("a %d\n",a->mp_req->data_length/sizeof(minergate_do_job_req));
+        printf("sENDING: %d\n", a->mp_req->req_count);
          send_minergate_pkt(a->mp_req,  a->mp_rsp, a->socket_fd);
+		 a->mp_req->req_count = 0;
          last_force_queue = tv;
          assert(!a->parse_resp);
          a->parse_resp = 1;
@@ -572,7 +444,86 @@ static int64_t spond_scanhash(struct thr_info *thr)
 	struct spond_adapter *a = cgpu->device_data;
 	//applog(LOG_DEBUG, "SPOND spond_scanhash %d", thr->id);
     if(a->parse_resp) {
-        parse_minergate_packet(a->mp_rsp, minergate_data_processor, a, a);
+
+
+
+
+
+		//DBG(DBG_NET, "GOT minergate_do_job_req: %x/%x\n", sizeof(minergate_do_job_req), md->data_length);
+		 int array_size = a->mp_rsp->rsp_count;
+		 int i;
+		 for (i = 0; i < array_size; i++) { // walk the jobs
+			 minergate_do_job_rsp* work = a->mp_rsp->rsp + i;
+			 int job_id =  work->work_id_in_sw;
+			 
+			 //a->minergate_work[job_id].cgminer_work.nonce1
+			  //printf("!!!! HERE %d! %p %p\n",job_id, a->cgpu, a->minergate_work[job_id].cgminer_work);
+			  if ((a->minergate_work[job_id].cgminer_work)) {
+				  printf("%d\n",__LINE__);
+
+				  a->works_in_minergate--;
+				  a->works_in_driver--;
+				  assert(a->minergate_work[job_id].state == SPONDWORK_STATE_IN_MINERGATE);
+				  if (a->minergate_work[job_id].merkel_root == work->mrkle_root) {
+					  
+					  //printf("!!!! HERE GOOD!! %d %x!\n",job_id, work->winner_nonce);
+					  
+					  printf("%s, %d\n",__FUNCTION__, __LINE__);
+					  if (work->winner_nonce) {
+						  struct work *cg_work = a->minergate_work[job_id].cgminer_work;
+						  printf("%d %d %x %x\n",__LINE__,cg_work->thr, cg_work,work->winner_nonce, cg_work->pool);
+						 int r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
+						 printf("!!!!!!!  WIN !!!!!!!!!!!!!!!!!!!!!\nSUBMISSION WORK RSP:%d\n", r);
+					  } else {
+						  //printf("!!!!!!!  LOOSE %d !!!!!!!!!!!!!!!!!!!!! \n", job_id);
+
+					  }
+
+					  //printf("!!!! <) %p %p \n",
+					  //a->cgpu, a->minergate_work[job_id].cgminer_work,
+					  //a->minergate_work[job_id].cgminer_work->subid);
+					  
+					  
+					  work_completed(a->cgpu, a->minergate_work[job_id].cgminer_work);
+					  
+					  
+					  // a->minergate_work[job_id].cgminer_work = NULL;
+				  } else {
+					  printf("!!!! HERE BAD!! %d! (%x %x)\n",job_id,
+						  a->minergate_work[job_id].merkel_root, 
+						  work->mrkle_root);
+						  
+					  //assert(0);
+				  }
+				  //
+				  //printf("!!!! HERE %d!\n",job_id);
+				  printf("%d\n",__LINE__);
+
+				  a->minergate_work[job_id].cgminer_work = NULL;
+				  //a->minergate_work[a->current_job_id].job_id = 0;
+				  //a->minergate_work[a->current_job_id].start_time = time();
+				  a->minergate_work[job_id].state = SPONDWORK_STATE_EMPTY;
+				  //printf("!!!! HERE FULL! id:%d res:%d!\n",job_id, work->res);	 
+			  } else {
+				  printf("%d\n",__LINE__);
+				  printf("!HERE EMPTY! id:%d res:%d!\n",job_id, work->res);
+				  //assert(0);
+			  }
+			  printf("%d\n",__LINE__);
+		 }
+	 
+
+
+
+
+
+
+
+
+
+
+
+		
         a->parse_resp = 0;
     }
 
@@ -625,8 +576,8 @@ static void spond_flush_work(struct cgpu_info *cgpu)
 
 
 struct device_drv spondoolies_drv = {
-	//.drv_id = DRIVER_spondoolies,
-	.drv_id = 9, // zvisha TODO
+	.drv_id = DRIVER_spondoolies,
+	//.drv_id = 9, // zvisha TODO
 	.dname = "Spondoolies",
 	.name = "SPN",
 	.drv_detect = spondoolies_detect,
