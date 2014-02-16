@@ -43,7 +43,7 @@ typedef struct {
     uint8_t res3;        
 } minergate_do_job_req;
 
-#define MAX_REQUESTS 40
+#define MAX_REQUESTS 80
 #define MAX_RESPONDS 200
 #define MINERGATE_TOTAL_QUEUE 200
 

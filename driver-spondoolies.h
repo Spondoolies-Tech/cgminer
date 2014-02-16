@@ -18,11 +18,11 @@ typedef enum adapter_state {
 
 typedef enum spond_work_state {
 	SPONDWORK_STATE_EMPTY,
-    SPONDWORK_STATE_IN_MINERGATE,
+    SPONDWORK_STATE_IN_BUSY,
 //    SPONDWORK_STATE_COMPLETE,
 } SPONDWORK_STATE; 
 
-
+#define MAX_JOBS_IN_MINERGATE 0xFF
 
 typedef struct {
     struct work      *cgminer_work;
@@ -35,22 +35,33 @@ typedef struct {
 struct spond_adapter {
 	pthread_mutex_t lock;
 	// Lock the job queue
+	/*
 	pthread_mutex_t qlock;
 	pthread_cond_t qcond;
+*/
 	ADAPTER_STATE adapter_state;
 	void* cgpu;
+	
+	// Statistics
+	int wins;
+	int good;
+	int empty;
+	int bad;
+	int overflow;
+	// state 
+	int works_in_driver;
+	int works_in_minergate;
+	int works_pending_tx;
+		
 
-
-
-    int works_pending_tx;
-    int works_in_driver;
-    int works_in_minergate;
-    int current_job_id; // 0 to 0xFF
     int socket_fd;
-    minergate_req_packet* mp_req;// = allocate_minergate_packet(10000, 0xca, 0xfe);
-    int parse_resp;
-    minergate_rsp_packet* mp_rsp;// = allocate_minergate_packet(10000, 0xca, 0xfe);
-    spond_driver_work minergate_work[0x100]; 
+
+	
+	int current_job_id; // 0 to 0xFF
+	int parse_resp;
+    minergate_req_packet* mp_next_req;
+    minergate_rsp_packet* mp_last_rsp;
+    spond_driver_work my_jobs[MAX_JOBS_IN_MINERGATE]; 
 };
 
 
@@ -60,8 +71,8 @@ int spond_do_scaling(struct spond_adapter *a);
 
 extern void one_sec_spondoolies_watchdog(int uptime);
 
-#define REQUEST_PERIOD 50000  // 20 times per second
-#define REQUEST_SIZE   25      // 25 jobs per request
+#define REQUEST_PERIOD 170000  //  times per second - in milli
+#define REQUEST_SIZE   80      //  jobs per request
 
 
 
