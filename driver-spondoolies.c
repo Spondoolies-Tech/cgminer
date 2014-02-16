@@ -59,7 +59,7 @@ void send_minergate_pkt(const minergate_req_packet* mp_req,
 	nbytes = read(socket_fd, (void*)mp_rsp, sizeof(minergate_rsp_packet));	
 	passert(nbytes > 0);
 	//printf("got %d(%d) bytes\n",mp_rsp->data_length, nbytes);
-	passert(mp_rsp->magic == 0xcafe);
+	passert(mp_rsp->magic == 0xcaf4);
 }
 
 
@@ -415,7 +415,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
         //     a->works_in_minergate, a->works_pending_tx, a->works_in_driver);
          
         // printf("a %d\n",a->mp_req->data_length/sizeof(minergate_do_job_req));
-        printf("sENDING: %d\n", a->mp_req->req_count);
+        //printf("sENDING: %d\n", a->mp_req->req_count);
          send_minergate_pkt(a->mp_req,  a->mp_rsp, a->socket_fd);
 		 a->mp_req->req_count = 0;
          last_force_queue = tv;
@@ -459,7 +459,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
 			 //a->minergate_work[job_id].cgminer_work.nonce1
 			  //printf("!!!! HERE %d! %p %p\n",job_id, a->cgpu, a->minergate_work[job_id].cgminer_work);
 			  if ((a->minergate_work[job_id].cgminer_work)) {
-				  printf("%d\n",__LINE__);
+				  //printf("%d\n",__LINE__);
 
 				  a->works_in_minergate--;
 				  a->works_in_driver--;
@@ -468,7 +468,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
 					  
 					  //printf("!!!! HERE GOOD!! %d %x!\n",job_id, work->winner_nonce);
 					  
-					  printf("%s, %d\n",__FUNCTION__, __LINE__);
+					  //printf("%s, %d\n",__FUNCTION__, __LINE__);
 					  if (work->winner_nonce) {
 						  struct work *cg_work = a->minergate_work[job_id].cgminer_work;
 						  printf("%d %d %x %x\n",__LINE__,cg_work->thr, cg_work,work->winner_nonce, cg_work->pool);
@@ -497,7 +497,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
 				  }
 				  //
 				  //printf("!!!! HERE %d!\n",job_id);
-				  printf("%d\n",__LINE__);
+				  //printf("%d\n",__LINE__);
 
 				  a->minergate_work[job_id].cgminer_work = NULL;
 				  //a->minergate_work[a->current_job_id].job_id = 0;
@@ -509,7 +509,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
 				  printf("!HERE EMPTY! id:%d res:%d!\n",job_id, work->res);
 				  //assert(0);
 			  }
-			  printf("%d\n",__LINE__);
+			  //printf("%d\n",__LINE__);
 		 }
 	 
 

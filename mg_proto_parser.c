@@ -18,7 +18,7 @@ minergate_req_packet *allocate_minergate_packet_req(
 	p->req_count = 0;
 	p->protocol_version = MINERGATE_PROTOCOL_VERSION;
 	p->request_id = request_id;
-	p->magic = 0xcafe;
+	p->magic = 0xcaf4;
 	p->resrved1 = 0;
 	return p;
 }
@@ -33,7 +33,7 @@ minergate_rsp_packet *allocate_minergate_packet_rsp(
 	p->rsp_count = 0;
 	p->protocol_version = MINERGATE_PROTOCOL_VERSION;
 	p->request_id = request_id;
-	p->magic = 0xcafe;
+	p->magic = 0xcaf4;
 	p->resrved1 = 0;
 	return p;
 }
