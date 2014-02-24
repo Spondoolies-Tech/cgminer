@@ -8053,9 +8053,9 @@ void enable_curses(void) {
 #endif
 
 
-#ifdef USE_SPONDOOLIES
-extern struct device_drv spondoolies_drv;
-#endif
+//#ifdef USE_SPONDOOLIES
+//extern struct device_drv spondoolies_drv;
+//#endif
 
 static int cgminer_id_count = 0;
 

@@ -67,7 +67,7 @@ void send_minergate_pkt(const minergate_req_packet* mp_req,
 	int 	nbytes;		
 	write(socket_fd, (const void*)mp_req, sizeof(minergate_req_packet));
 	nbytes = read(socket_fd, (void*)mp_rsp, sizeof(minergate_rsp_packet));	
-	if(nbytes > 0);
+	assert(nbytes > 0);
 	//printf("got %d(%d) bytes\n",mp_rsp->data_length, nbytes);
 	passert(mp_rsp->magic == 0xcaf4);
 }
@@ -350,7 +350,9 @@ void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work) {
 static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter* a)
 {
 		if (!a->parse_resp) {
-			print_stats(a);
+			static int i =0;
+			if (i++%10 == 0)
+				print_stats(a);
 	        // TODO - send packet
 	        //printf("%d %d %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver );
 	        if (a->works_in_minergate + a->works_pending_tx != a->works_in_driver) {
@@ -364,6 +366,7 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter
 	        // printf("a %d\n",a->mp_next_req->data_length/sizeof(minergate_do_job_req));
 	        //printf("sENDING: %d\n", a->mp_next_req->req_count);
 	         send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
+			 a->mp_next_req->connect = 0;
 			 a->mp_next_req->req_count = 0;
 	   //      assert(!a->parse_resp);
 	         a->parse_resp = 1;
@@ -401,8 +404,8 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 
 	// flush queue every REQUEST_PERIOD.
 	if (usec >= REQUEST_PERIOD) {
-		print_stats(a);
-		printf("Flush!\n");
+		static int i =0;
+		if (i++%10 == 0) print_stats(a);
 		spondoolies_flush_queue(cgpu, a);
 		last_force_queue = tv;
    }
@@ -435,12 +438,6 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 	work->thr = cgpu->thr[0];	
 	work->thr_id = cgpu->thr[0]->id;
 	assert(work->thr);
-
-	// todo zvisha remove debug
-	if (a->works_pending_tx == 3) {
-		printf("leading zeroes = %d\n", get_leading_zeroes(work->target));
-
-	}
 
 	//printf("taking job id=%d in pkt=%d\n", a->current_job_id,a->works_pending_tx);
    
@@ -523,11 +520,12 @@ static int64_t spond_scanhash(struct thr_info *thr)
 						 struct work *cg_work = a->my_jobs[job_id].cgminer_work;
 						 printf("%d %d %x %x\n",__LINE__,cg_work->thr, cg_work,work->winner_nonce, cg_work->pool);
 						 int r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
-						 printf("!!!!!!!  WIN !!!!!!!!!!!!!!!!!!!!!\nSUBMISSION WORK RSP:%d\n", r);
+						 printf("!!!!!!!  WIN(OK=%d) !!!!!!!! %x %x \n", 
+						 	r, work->winner_nonce, a->my_jobs[job_id].job_id);
 						 a->wins++;
 					  } else {
 						  //printf("!!!!!!!  LOOSE %d !!!!!!!!!!!!!!!!!!!!! \n", job_id);
-
+						  
 					  }
 
 					  //printf("!!!! <) %p %p \n",
