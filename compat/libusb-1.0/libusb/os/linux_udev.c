@@ -52,14 +52,14 @@ static void *linux_udev_event_thread_main(void *arg);
 
 int linux_udev_start_event_monitor(void)
 {
-  int r;
+	int r;
 
-  if (NULL == udev_ctx) {
-    udev_ctx = udev_new();
-    if (!udev_ctx) {
-      return LIBUSB_ERROR_OTHER;
-    }
-  }
+	if (NULL == udev_ctx) {
+		udev_ctx = udev_new();
+		if (!udev_ctx) {
+			return LIBUSB_ERROR_OTHER;
+		}
+	}
 
         udev_monitor = udev_monitor_new_from_netlink(udev_ctx, "udev");
         if (!udev_monitor) {
@@ -92,150 +92,150 @@ int linux_udev_stop_event_monitor(void)
                 return LIBUSB_ERROR_OTHER;
         }
 
-  /* Cancel the event thread. This is the only way to garauntee the thread
-     exits since closing the monitor fd won't necessarily cause poll
-     to return. */
-  pthread_cancel(linux_event_thread);
+	/* Cancel the event thread. This is the only way to garauntee the thread
+	   exits since closing the monitor fd won't necessarily cause poll
+	   to return. */
+	pthread_cancel(linux_event_thread);
 
-  /* Release the udev monitor */
+	/* Release the udev monitor */
         udev_monitor_unref(udev_monitor);
-  udev_monitor = NULL;
+	udev_monitor = NULL;
         udev_monitor_fd = -1;
 
-  /* Clean up the udev context */
-  udev_unref(udev_ctx);
-  udev_ctx = NULL;
+	/* Clean up the udev context */
+	udev_unref(udev_ctx);
+	udev_ctx = NULL;
 
         return LIBUSB_SUCCESS;
 }
 
 static void *linux_udev_event_thread_main(void __attribute__((unused)) *arg)
 {
-  struct pollfd fds = {.fd = udev_monitor_fd,
-           .events = POLLIN};
+	struct pollfd fds = {.fd = udev_monitor_fd,
+			     .events = POLLIN};
 
-  usbi_dbg("udev event thread entering.");
+	usbi_dbg("udev event thread entering.");
 
-  while (1 == poll(&fds, 1, -1)) {
-    if (NULL == udev_monitor || POLLIN != fds.revents) {
-      break;
-    }
+	while (1 == poll(&fds, 1, -1)) {
+		if (NULL == udev_monitor || POLLIN != fds.revents) {
+			break;
+		}
 
-    udev_hotplug_event();
-  }
+		udev_hotplug_event();
+	}
 
-  usbi_dbg("udev event thread exiting");
+	usbi_dbg("udev event thread exiting");
 
-  return NULL;
+	return NULL;
 }
 
 static int udev_device_info(struct libusb_context *ctx, int detached,
-          struct udev_device *udev_dev, uint8_t *busnum,
-          uint8_t *devaddr, const char **sys_name) {
-  const char *dev_node;
+			    struct udev_device *udev_dev, uint8_t *busnum,
+			    uint8_t *devaddr, const char **sys_name) {
+	const char *dev_node;
 
-  dev_node = udev_device_get_devnode(udev_dev);
-  if (!dev_node) {
-    return LIBUSB_ERROR_OTHER;
-  }
+	dev_node = udev_device_get_devnode(udev_dev);
+	if (!dev_node) {
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  *sys_name = udev_device_get_sysname(udev_dev);
-  if (!*sys_name) {
-    return LIBUSB_ERROR_OTHER;
-  }
+	*sys_name = udev_device_get_sysname(udev_dev);
+	if (!*sys_name) {
+		return LIBUSB_ERROR_OTHER;
+	}
 
         return linux_get_device_address(ctx, detached, busnum, devaddr,
-          dev_node, *sys_name);
+					dev_node, *sys_name);
 }
 
 static void udev_hotplug_event(void)
 {
-  struct udev_device* udev_dev;
-  const char* udev_action;
-  const char* sys_name = NULL;
-  uint8_t busnum = 0, devaddr = 0;
-  int detached;
-  int r;
+	struct udev_device* udev_dev;
+	const char* udev_action;
+	const char* sys_name = NULL;
+	uint8_t busnum = 0, devaddr = 0;
+	int detached;
+	int r;
 
-  if (NULL == udev_monitor) {
-    return;
-  }
+	if (NULL == udev_monitor) {
+		return;
+	}
 
-  do {
-    udev_dev = udev_monitor_receive_device(udev_monitor);
-    if (!udev_dev) {
-      usbi_err(NULL, "failed to read data from udev monitor socket.");
-      return;
-    }
+	do {
+		udev_dev = udev_monitor_receive_device(udev_monitor);
+		if (!udev_dev) {
+			usbi_err(NULL, "failed to read data from udev monitor socket.");
+			return;
+		}
 
-    udev_action = udev_device_get_action(udev_dev);
-    if (!udev_action) {
-      break;
-    }
+		udev_action = udev_device_get_action(udev_dev);
+		if (!udev_action) {
+			break;
+		}
 
-    detached = !strncmp(udev_action, "remove", 6);
+		detached = !strncmp(udev_action, "remove", 6);
 
-    r = udev_device_info(NULL, detached, udev_dev, &busnum, &devaddr, &sys_name);
-    if (LIBUSB_SUCCESS != r) {
-      break;
-    }
+		r = udev_device_info(NULL, detached, udev_dev, &busnum, &devaddr, &sys_name);
+		if (LIBUSB_SUCCESS != r) {
+			break;
+		}
 
-    usbi_dbg("udev hotplug event. action: %s.", udev_action);
+		usbi_dbg("udev hotplug event. action: %s.", udev_action);
 
-    if (strncmp(udev_action, "add", 3) == 0) {
-      linux_hotplug_enumerate(busnum, devaddr, sys_name);
-    } else if (detached) {
-      linux_hotplug_disconnected(busnum, devaddr, sys_name);
-    } else {
-      usbi_err(NULL, "ignoring udev action %s", udev_action);
-    }
-  } while (0);
+		if (strncmp(udev_action, "add", 3) == 0) {
+			linux_hotplug_enumerate(busnum, devaddr, sys_name);
+		} else if (detached) {
+			linux_hotplug_disconnected(busnum, devaddr, sys_name);
+		} else {
+			usbi_err(NULL, "ignoring udev action %s", udev_action);
+		}
+	} while (0);
 
-  udev_device_unref(udev_dev);
+	udev_device_unref(udev_dev);
 }
 
 int linux_udev_scan_devices(struct libusb_context *ctx)
 {
-  struct udev_enumerate *enumerator;
-  struct udev_list_entry *devices, *entry;
-  struct udev_device *udev_dev;
-  const char *sys_name;
-  int r;
+	struct udev_enumerate *enumerator;
+	struct udev_list_entry *devices, *entry;
+	struct udev_device *udev_dev;
+	const char *sys_name;
+	int r;
 
-  if (NULL == udev_ctx) {
-    udev_ctx = udev_new();
-    if (!udev_ctx) {
-      return LIBUSB_ERROR_OTHER;
-    }
-  }
+	if (NULL == udev_ctx) {
+		udev_ctx = udev_new();
+		if (!udev_ctx) {
+			return LIBUSB_ERROR_OTHER;
+		}
+	}
 
-  enumerator = udev_enumerate_new(udev_ctx);
-  if (NULL == enumerator) {
-    usbi_err(ctx, "error creating udev enumerator");
-    return LIBUSB_ERROR_OTHER;
-  }
+	enumerator = udev_enumerate_new(udev_ctx);
+	if (NULL == enumerator) {
+		usbi_err(ctx, "error creating udev enumerator");
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  udev_enumerate_add_match_subsystem(enumerator, "usb");
-  udev_enumerate_scan_devices(enumerator);
-  devices = udev_enumerate_get_list_entry(enumerator);
+	udev_enumerate_add_match_subsystem(enumerator, "usb");
+	udev_enumerate_scan_devices(enumerator);
+	devices = udev_enumerate_get_list_entry(enumerator);
 
-  udev_list_entry_foreach(entry, devices) {
-    const char *path = udev_list_entry_get_name(entry);
-    uint8_t busnum = 0, devaddr = 0;
+	udev_list_entry_foreach(entry, devices) {
+		const char *path = udev_list_entry_get_name(entry);
+		uint8_t busnum = 0, devaddr = 0;
 
-    udev_dev = udev_device_new_from_syspath(udev_ctx, path);
+		udev_dev = udev_device_new_from_syspath(udev_ctx, path);
 
-    r = udev_device_info(ctx, 0, udev_dev, &busnum, &devaddr, &sys_name);
-    if (r) {
-      udev_device_unref(udev_dev);
-      continue;
-    }
+		r = udev_device_info(ctx, 0, udev_dev, &busnum, &devaddr, &sys_name);
+		if (r) {
+			udev_device_unref(udev_dev);
+			continue;
+		}
 
-    linux_enumerate_device(ctx, busnum, devaddr, sys_name);
-    udev_device_unref(udev_dev);
-  }
+		linux_enumerate_device(ctx, busnum, devaddr, sys_name);
+		udev_device_unref(udev_dev);
+	}
 
-  udev_enumerate_unref(enumerator);
+	udev_enumerate_unref(enumerator);
 
         return LIBUSB_SUCCESS;
 }

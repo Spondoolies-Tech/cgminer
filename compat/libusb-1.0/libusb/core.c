@@ -49,8 +49,8 @@ const struct usbi_os_backend * const usbi_backend = &windows_backend;
 #endif
 
 const struct libusb_version libusb_version_internal = {
-  LIBUSB_MAJOR, LIBUSB_MINOR, LIBUSB_MICRO, LIBUSB_NANO, LIBUSB_RC,
-  LIBUSB_DESCRIBE
+	LIBUSB_MAJOR, LIBUSB_MINOR, LIBUSB_MICRO, LIBUSB_NANO, LIBUSB_RC,
+	LIBUSB_DESCRIBE
 };
 
 struct libusb_context *usbi_default_context = NULL;
@@ -222,7 +222,7 @@ struct list_head active_contexts_list;
 \code
 cfg = libusb_get_configuration(dev);
 if (cfg != desired)
-  libusb_set_configuration(dev, desired);
+	libusb_set_configuration(dev, desired);
 \endcode
  *
  * This is probably suitable for most scenarios, but is inherently racy:
@@ -366,23 +366,23 @@ ssize_t cnt = libusb_get_device_list(NULL, &list);
 ssize_t i = 0;
 int err = 0;
 if (cnt < 0)
-  error();
+	error();
 
 for (i = 0; i < cnt; i++) {
-  libusb_device *device = list[i];
-  if (is_interesting(device)) {
-    found = device;
-    break;
-  }
+	libusb_device *device = list[i];
+	if (is_interesting(device)) {
+		found = device;
+		break;
+	}
 }
 
 if (found) {
-  libusb_device_handle *handle;
+	libusb_device_handle *handle;
 
-  err = libusb_open(found, &handle);
-  if (err)
-    error();
-  // etc
+	err = libusb_open(found, &handle);
+	if (err)
+		error();
+	// etc
 }
 
 libusb_free_device_list(list, 1);
@@ -466,84 +466,84 @@ libusb_free_device_list(list, 1);
 
 static struct discovered_devs *discovered_devs_alloc(void)
 {
-  struct discovered_devs *ret =
-    malloc(sizeof(*ret) + (sizeof(void *) * DISCOVERED_DEVICES_SIZE_STEP));
+	struct discovered_devs *ret =
+		malloc(sizeof(*ret) + (sizeof(void *) * DISCOVERED_DEVICES_SIZE_STEP));
 
-  if (ret) {
-    ret->len = 0;
-    ret->capacity = DISCOVERED_DEVICES_SIZE_STEP;
-  }
-  return ret;
+	if (ret) {
+		ret->len = 0;
+		ret->capacity = DISCOVERED_DEVICES_SIZE_STEP;
+	}
+	return ret;
 }
 
 /* append a device to the discovered devices collection. may realloc itself,
  * returning new discdevs. returns NULL on realloc failure. */
 struct discovered_devs *discovered_devs_append(
-  struct discovered_devs *discdevs, struct libusb_device *dev)
+	struct discovered_devs *discdevs, struct libusb_device *dev)
 {
-  size_t len = discdevs->len;
-  size_t capacity;
+	size_t len = discdevs->len;
+	size_t capacity;
 
-  /* if there is space, just append the device */
-  if (len < discdevs->capacity) {
-    discdevs->devices[len] = libusb_ref_device(dev);
-    discdevs->len++;
-    return discdevs;
-  }
+	/* if there is space, just append the device */
+	if (len < discdevs->capacity) {
+		discdevs->devices[len] = libusb_ref_device(dev);
+		discdevs->len++;
+		return discdevs;
+	}
 
-  /* exceeded capacity, need to grow */
-  usbi_dbg("need to increase capacity");
-  capacity = discdevs->capacity + DISCOVERED_DEVICES_SIZE_STEP;
-  discdevs = realloc(discdevs,
-    sizeof(*discdevs) + (sizeof(void *) * capacity));
-  if (discdevs) {
-    discdevs->capacity = capacity;
-    discdevs->devices[len] = libusb_ref_device(dev);
-    discdevs->len++;
-  }
+	/* exceeded capacity, need to grow */
+	usbi_dbg("need to increase capacity");
+	capacity = discdevs->capacity + DISCOVERED_DEVICES_SIZE_STEP;
+	discdevs = realloc(discdevs,
+		sizeof(*discdevs) + (sizeof(void *) * capacity));
+	if (discdevs) {
+		discdevs->capacity = capacity;
+		discdevs->devices[len] = libusb_ref_device(dev);
+		discdevs->len++;
+	}
 
-  return discdevs;
+	return discdevs;
 }
 
 static void discovered_devs_free(struct discovered_devs *discdevs)
 {
-  size_t i;
+	size_t i;
 
-  for (i = 0; i < discdevs->len; i++)
-    libusb_unref_device(discdevs->devices[i]);
+	for (i = 0; i < discdevs->len; i++)
+		libusb_unref_device(discdevs->devices[i]);
 
-  free(discdevs);
+	free(discdevs);
 }
 
 /* Allocate a new device with a specific session ID. The returned device has
  * a reference count of 1. */
 struct libusb_device *usbi_alloc_device(struct libusb_context *ctx,
-  unsigned long session_id)
+	unsigned long session_id)
 {
-  size_t priv_size = usbi_backend->device_priv_size;
-  struct libusb_device *dev = calloc(1, sizeof(*dev) + priv_size);
-  int r;
+	size_t priv_size = usbi_backend->device_priv_size;
+	struct libusb_device *dev = calloc(1, sizeof(*dev) + priv_size);
+	int r;
 
-  if (!dev)
-    return NULL;
+	if (!dev)
+		return NULL;
 
-  r = usbi_mutex_init(&dev->lock, NULL);
-  if (r) {
-    free(dev);
-    return NULL;
-  }
+	r = usbi_mutex_init(&dev->lock, NULL);
+	if (r) {
+		free(dev);
+		return NULL;
+	}
 
-  dev->ctx = ctx;
-  dev->refcnt = 1;
-  dev->session_data = session_id;
-  dev->speed = LIBUSB_SPEED_UNKNOWN;
-  memset(&dev->os_priv, 0, priv_size);
+	dev->ctx = ctx;
+	dev->refcnt = 1;
+	dev->session_data = session_id;
+	dev->speed = LIBUSB_SPEED_UNKNOWN;
+	memset(&dev->os_priv, 0, priv_size);
 
-  if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
-    usbi_connect_device (dev);
-  }
+	if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
+		usbi_connect_device (dev);
+	}
 
-  return dev;
+	return dev;
 }
 
 void usbi_connect_device(struct libusb_device *dev)
@@ -551,16 +551,16 @@ void usbi_connect_device(struct libusb_device *dev)
         libusb_hotplug_message message = {LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, dev};
         int ret;
 
-  dev->attached = 1;
+	dev->attached = 1;
 
-  usbi_mutex_lock(&dev->ctx->usb_devs_lock);
-  list_add(&dev->list, &dev->ctx->usb_devs);
-  usbi_mutex_unlock(&dev->ctx->usb_devs_lock);
+	usbi_mutex_lock(&dev->ctx->usb_devs_lock);
+	list_add(&dev->list, &dev->ctx->usb_devs);
+	usbi_mutex_unlock(&dev->ctx->usb_devs_lock);
 
         /* Signal that an event has occurred for this device if we support hotplug AND
            the hotplug pipe is ready. This prevents an event from getting raised during
            initial enumeration. */
-  if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG) && dev->ctx->hotplug_pipe[1] > 0) {
+	if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG) && dev->ctx->hotplug_pipe[1] > 0) {
                 ret = usbi_write(dev->ctx->hotplug_pipe[1], &message, sizeof (message));
                 if (sizeof (message) != ret) {
                         usbi_err(DEVICE_CTX(dev), "error writing hotplug message");
@@ -571,27 +571,27 @@ void usbi_connect_device(struct libusb_device *dev)
 void usbi_disconnect_device(struct libusb_device *dev)
 {
         libusb_hotplug_message message = {LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT, dev};
-  struct libusb_context *ctx = dev->ctx;
+	struct libusb_context *ctx = dev->ctx;
         int ret;
 
-  usbi_mutex_lock(&dev->lock);
-  dev->attached = 0;
-  usbi_mutex_unlock(&dev->lock);
+	usbi_mutex_lock(&dev->lock);
+	dev->attached = 0;
+	usbi_mutex_unlock(&dev->lock);
 
         /* Signal that an event has occurred for this device if we support hotplug AND
            the hotplug pipe is ready. This prevents an event from getting raised during
            initial enumeration. libusb_handle_events will take care of dereferencing the
            device. */
-  if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG) && dev->ctx->hotplug_pipe[1] > 0) {
+	if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG) && dev->ctx->hotplug_pipe[1] > 0) {
                 ret = usbi_write(dev->ctx->hotplug_pipe[1], &message, sizeof (message));
                 if (sizeof(message) != ret) {
                         usbi_err(DEVICE_CTX(dev), "error writing hotplug message");
                 }
         }
 
-  usbi_mutex_lock(&ctx->usb_devs_lock);
-  list_del(&dev->list);
-  usbi_mutex_unlock(&ctx->usb_devs_lock);
+	usbi_mutex_lock(&ctx->usb_devs_lock);
+	list_del(&dev->list);
+	usbi_mutex_unlock(&ctx->usb_devs_lock);
 }
 
 /* Perform some final sanity checks on a newly discovered device. If this
@@ -599,42 +599,42 @@ void usbi_disconnect_device(struct libusb_device *dev)
  * to the discovered device list. */
 int usbi_sanitize_device(struct libusb_device *dev)
 {
-  int r;
-  uint8_t num_configurations;
+	int r;
+	uint8_t num_configurations;
 
-  r = usbi_device_cache_descriptor(dev);
-  if (r < 0)
-    return r;
+	r = usbi_device_cache_descriptor(dev);
+	if (r < 0)
+		return r;
 
-  num_configurations = dev->device_descriptor.bNumConfigurations;
-  if (num_configurations > USB_MAXCONFIG) {
-    usbi_err(DEVICE_CTX(dev), "too many configurations");
-    return LIBUSB_ERROR_IO;
-  } else if (0 == num_configurations)
-    usbi_dbg("zero configurations, maybe an unauthorized device");
+	num_configurations = dev->device_descriptor.bNumConfigurations;
+	if (num_configurations > USB_MAXCONFIG) {
+		usbi_err(DEVICE_CTX(dev), "too many configurations");
+		return LIBUSB_ERROR_IO;
+	} else if (0 == num_configurations)
+		usbi_dbg("zero configurations, maybe an unauthorized device");
 
-  dev->num_configurations = num_configurations;
-  return 0;
+	dev->num_configurations = num_configurations;
+	return 0;
 }
 
 /* Examine libusb's internal list of known devices, looking for one with
  * a specific session ID. Returns the matching device if it was found, and
  * NULL otherwise. */
 struct libusb_device *usbi_get_device_by_session_id(struct libusb_context *ctx,
-  unsigned long session_id)
+	unsigned long session_id)
 {
-  struct libusb_device *dev;
-  struct libusb_device *ret = NULL;
+	struct libusb_device *dev;
+	struct libusb_device *ret = NULL;
 
-  usbi_mutex_lock(&ctx->usb_devs_lock);
-  list_for_each_entry(dev, &ctx->usb_devs, list, struct libusb_device)
-    if (dev->session_data == session_id) {
-      ret = dev;
-      break;
-    }
-  usbi_mutex_unlock(&ctx->usb_devs_lock);
+	usbi_mutex_lock(&ctx->usb_devs_lock);
+	list_for_each_entry(dev, &ctx->usb_devs, list, struct libusb_device)
+		if (dev->session_data == session_id) {
+			ret = dev;
+			break;
+		}
+	usbi_mutex_unlock(&ctx->usb_devs_lock);
 
-  return ret;
+	return ret;
 }
 
 /** @ingroup dev
@@ -658,60 +658,60 @@ struct libusb_device *usbi_get_device_by_session_id(struct libusb_context *ctx,
  * \ref libusb_error according to errors encountered by the backend.
  */
 ssize_t API_EXPORTED libusb_get_device_list(libusb_context *ctx,
-  libusb_device ***list)
+	libusb_device ***list)
 {
-  struct discovered_devs *discdevs = discovered_devs_alloc();
-  struct libusb_device **ret;
-  int r = 0;
-  ssize_t i, len;
-  USBI_GET_CONTEXT(ctx);
-  usbi_dbg("");
+	struct discovered_devs *discdevs = discovered_devs_alloc();
+	struct libusb_device **ret;
+	int r = 0;
+	ssize_t i, len;
+	USBI_GET_CONTEXT(ctx);
+	usbi_dbg("");
 
-  if (!discdevs)
-    return LIBUSB_ERROR_NO_MEM;
+	if (!discdevs)
+		return LIBUSB_ERROR_NO_MEM;
 
-  if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
-    /* backend provides hotplug support */
-    struct libusb_device *dev;
+	if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
+		/* backend provides hotplug support */
+		struct libusb_device *dev;
 
-    usbi_mutex_lock(&ctx->usb_devs_lock);
-    list_for_each_entry(dev, &ctx->usb_devs, list, struct libusb_device) {
-      discdevs = discovered_devs_append(discdevs, dev);
+		usbi_mutex_lock(&ctx->usb_devs_lock);
+		list_for_each_entry(dev, &ctx->usb_devs, list, struct libusb_device) {
+			discdevs = discovered_devs_append(discdevs, dev);
 
-      if (!discdevs) {
-        r = LIBUSB_ERROR_NO_MEM;
-        break;
-      }
-    }
-    usbi_mutex_unlock(&ctx->usb_devs_lock);
-  } else {
-    /* backend does not provide hotplug support */
-    r = usbi_backend->get_device_list(ctx, &discdevs);
-  }
+			if (!discdevs) {
+				r = LIBUSB_ERROR_NO_MEM;
+				break;
+			}
+		}
+		usbi_mutex_unlock(&ctx->usb_devs_lock);
+	} else {
+		/* backend does not provide hotplug support */
+		r = usbi_backend->get_device_list(ctx, &discdevs);
+	}
 
-  if (r < 0) {
-    len = r;
-    goto out;
-  }
+	if (r < 0) {
+		len = r;
+		goto out;
+	}
 
-  /* convert discovered_devs into a list */
-  len = discdevs->len;
-  ret = malloc(sizeof(void *) * (len + 1));
-  if (!ret) {
-    len = LIBUSB_ERROR_NO_MEM;
-    goto out;
-  }
+	/* convert discovered_devs into a list */
+	len = discdevs->len;
+	ret = malloc(sizeof(void *) * (len + 1));
+	if (!ret) {
+		len = LIBUSB_ERROR_NO_MEM;
+		goto out;
+	}
 
-  ret[len] = NULL;
-  for (i = 0; i < len; i++) {
-    struct libusb_device *dev = discdevs->devices[i];
-    ret[i] = libusb_ref_device(dev);
-  }
-  *list = ret;
+	ret[len] = NULL;
+	for (i = 0; i < len; i++) {
+		struct libusb_device *dev = discdevs->devices[i];
+		ret[i] = libusb_ref_device(dev);
+	}
+	*list = ret;
 
 out:
-  discovered_devs_free(discdevs);
-  return len;
+	discovered_devs_free(discdevs);
+	return len;
 }
 
 /** \ingroup dev
@@ -722,19 +722,19 @@ out:
  * \param unref_devices whether to unref the devices in the list
  */
 void API_EXPORTED libusb_free_device_list(libusb_device **list,
-  int unref_devices)
+	int unref_devices)
 {
-  if (!list)
-    return;
+	if (!list)
+		return;
 
-  if (unref_devices) {
-    int i = 0;
-    struct libusb_device *dev;
+	if (unref_devices) {
+		int i = 0;
+		struct libusb_device *dev;
 
-    while ((dev = list[i++]) != NULL)
-      libusb_unref_device(dev);
-  }
-  free(list);
+		while ((dev = list[i++]) != NULL)
+			libusb_unref_device(dev);
+	}
+	free(list);
 }
 
 /** \ingroup dev
@@ -744,7 +744,7 @@ void API_EXPORTED libusb_free_device_list(libusb_device **list,
  */
 uint8_t API_EXPORTED libusb_get_bus_number(libusb_device *dev)
 {
-  return dev->bus_number;
+	return dev->bus_number;
 }
 
 /** \ingroup dev
@@ -754,7 +754,7 @@ uint8_t API_EXPORTED libusb_get_bus_number(libusb_device *dev)
  */
 uint8_t API_EXPORTED libusb_get_device_address(libusb_device *dev)
 {
-  return dev->device_address;
+	return dev->device_address;
 }
 
 /** \ingroup dev
@@ -765,32 +765,32 @@ uint8_t API_EXPORTED libusb_get_device_address(libusb_device *dev)
  */
 int API_EXPORTED libusb_get_device_speed(libusb_device *dev)
 {
-  return dev->speed;
+	return dev->speed;
 }
 
 static const struct libusb_endpoint_descriptor *find_endpoint(
-  struct libusb_config_descriptor *config, unsigned char endpoint)
+	struct libusb_config_descriptor *config, unsigned char endpoint)
 {
-  int iface_idx;
-  for (iface_idx = 0; iface_idx < config->bNumInterfaces; iface_idx++) {
-    const struct libusb_interface *iface = &config->interface[iface_idx];
-    int altsetting_idx;
+	int iface_idx;
+	for (iface_idx = 0; iface_idx < config->bNumInterfaces; iface_idx++) {
+		const struct libusb_interface *iface = &config->interface[iface_idx];
+		int altsetting_idx;
 
-    for (altsetting_idx = 0; altsetting_idx < iface->num_altsetting;
-        altsetting_idx++) {
-      const struct libusb_interface_descriptor *altsetting
-        = &iface->altsetting[altsetting_idx];
-      int ep_idx;
+		for (altsetting_idx = 0; altsetting_idx < iface->num_altsetting;
+				altsetting_idx++) {
+			const struct libusb_interface_descriptor *altsetting
+				= &iface->altsetting[altsetting_idx];
+			int ep_idx;
 
-      for (ep_idx = 0; ep_idx < altsetting->bNumEndpoints; ep_idx++) {
-        const struct libusb_endpoint_descriptor *ep =
-          &altsetting->endpoint[ep_idx];
-        if (ep->bEndpointAddress == endpoint)
-          return ep;
-      }
-    }
-  }
-  return NULL;
+			for (ep_idx = 0; ep_idx < altsetting->bNumEndpoints; ep_idx++) {
+				const struct libusb_endpoint_descriptor *ep =
+					&altsetting->endpoint[ep_idx];
+				if (ep->bEndpointAddress == endpoint)
+					return ep;
+			}
+		}
+	}
+	return NULL;
 }
 
 /** \ingroup dev
@@ -810,26 +810,26 @@ static const struct libusb_endpoint_descriptor *find_endpoint(
  * \returns LIBUSB_ERROR_OTHER on other failure
  */
 int API_EXPORTED libusb_get_max_packet_size(libusb_device *dev,
-  unsigned char endpoint)
+	unsigned char endpoint)
 {
-  struct libusb_config_descriptor *config;
-  const struct libusb_endpoint_descriptor *ep;
-  int r;
+	struct libusb_config_descriptor *config;
+	const struct libusb_endpoint_descriptor *ep;
+	int r;
 
-  r = libusb_get_active_config_descriptor(dev, &config);
-  if (r < 0) {
-    usbi_err(DEVICE_CTX(dev),
-      "could not retrieve active config descriptor");
-    return LIBUSB_ERROR_OTHER;
-  }
+	r = libusb_get_active_config_descriptor(dev, &config);
+	if (r < 0) {
+		usbi_err(DEVICE_CTX(dev),
+			"could not retrieve active config descriptor");
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  ep = find_endpoint(config, endpoint);
-  if (!ep)
-    return LIBUSB_ERROR_NOT_FOUND;
+	ep = find_endpoint(config, endpoint);
+	if (!ep)
+		return LIBUSB_ERROR_NOT_FOUND;
 
-  r = ep->wMaxPacketSize;
-  libusb_free_config_descriptor(config);
-  return r;
+	r = ep->wMaxPacketSize;
+	libusb_free_config_descriptor(config);
+	return r;
 }
 
 /** \ingroup dev
@@ -859,34 +859,34 @@ int API_EXPORTED libusb_get_max_packet_size(libusb_device *dev,
  * \returns LIBUSB_ERROR_OTHER on other failure
  */
 int API_EXPORTED libusb_get_max_iso_packet_size(libusb_device *dev,
-  unsigned char endpoint)
+	unsigned char endpoint)
 {
-  struct libusb_config_descriptor *config;
-  const struct libusb_endpoint_descriptor *ep;
-  enum libusb_transfer_type ep_type;
-  uint16_t val;
-  int r;
+	struct libusb_config_descriptor *config;
+	const struct libusb_endpoint_descriptor *ep;
+	enum libusb_transfer_type ep_type;
+	uint16_t val;
+	int r;
 
-  r = libusb_get_active_config_descriptor(dev, &config);
-  if (r < 0) {
-    usbi_err(DEVICE_CTX(dev),
-      "could not retrieve active config descriptor");
-    return LIBUSB_ERROR_OTHER;
-  }
+	r = libusb_get_active_config_descriptor(dev, &config);
+	if (r < 0) {
+		usbi_err(DEVICE_CTX(dev),
+			"could not retrieve active config descriptor");
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  ep = find_endpoint(config, endpoint);
-  if (!ep)
-    return LIBUSB_ERROR_NOT_FOUND;
+	ep = find_endpoint(config, endpoint);
+	if (!ep)
+		return LIBUSB_ERROR_NOT_FOUND;
 
-  val = ep->wMaxPacketSize;
-  ep_type = ep->bmAttributes & 0x3;
-  libusb_free_config_descriptor(config);
+	val = ep->wMaxPacketSize;
+	ep_type = ep->bmAttributes & 0x3;
+	libusb_free_config_descriptor(config);
 
-  r = val & 0x07ff;
-  if (ep_type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS
-      || ep_type == LIBUSB_TRANSFER_TYPE_INTERRUPT)
-    r *= (1 + ((val >> 11) & 3));
-  return r;
+	r = val & 0x07ff;
+	if (ep_type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS
+			|| ep_type == LIBUSB_TRANSFER_TYPE_INTERRUPT)
+		r *= (1 + ((val >> 11) & 3));
+	return r;
 }
 
 /** \ingroup dev
@@ -897,10 +897,10 @@ int API_EXPORTED libusb_get_max_iso_packet_size(libusb_device *dev,
 DEFAULT_VISIBILITY
 libusb_device * LIBUSB_CALL libusb_ref_device(libusb_device *dev)
 {
-  usbi_mutex_lock(&dev->lock);
-  dev->refcnt++;
-  usbi_mutex_unlock(&dev->lock);
-  return dev;
+	usbi_mutex_lock(&dev->lock);
+	dev->refcnt++;
+	usbi_mutex_unlock(&dev->lock);
+	return dev;
 }
 
 /** \ingroup dev
@@ -910,29 +910,29 @@ libusb_device * LIBUSB_CALL libusb_ref_device(libusb_device *dev)
  */
 void API_EXPORTED libusb_unref_device(libusb_device *dev)
 {
-  int refcnt;
+	int refcnt;
 
-  if (!dev)
-    return;
+	if (!dev)
+		return;
 
-  usbi_mutex_lock(&dev->lock);
-  refcnt = --dev->refcnt;
-  usbi_mutex_unlock(&dev->lock);
+	usbi_mutex_lock(&dev->lock);
+	refcnt = --dev->refcnt;
+	usbi_mutex_unlock(&dev->lock);
 
-  if (refcnt == 0) {
-    usbi_dbg("destroy device %d.%d", dev->bus_number, dev->device_address);
+	if (refcnt == 0) {
+		usbi_dbg("destroy device %d.%d", dev->bus_number, dev->device_address);
 
-    if (usbi_backend->destroy_device)
-      usbi_backend->destroy_device(dev);
+		if (usbi_backend->destroy_device)
+			usbi_backend->destroy_device(dev);
 
-    if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
-      /* backend does not support hotplug */
-      usbi_disconnect_device(dev);
-    }
+		if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
+			/* backend does not support hotplug */
+			usbi_disconnect_device(dev);
+		}
 
-    usbi_mutex_destroy(&dev->lock);
-    free(dev);
-  }
+		usbi_mutex_destroy(&dev->lock);
+		free(dev);
+	}
 }
 
 /*
@@ -941,42 +941,42 @@ void API_EXPORTED libusb_unref_device(libusb_device *dev)
  */
 void usbi_fd_notification(struct libusb_context *ctx)
 {
-  unsigned char dummy = 1;
-  ssize_t r;
+	unsigned char dummy = 1;
+	ssize_t r;
 
-  if (ctx == NULL)
-    return;
+	if (ctx == NULL)
+		return;
 
-  /* record that we are messing with poll fds */
-  usbi_mutex_lock(&ctx->pollfd_modify_lock);
-  ctx->pollfd_modify++;
-  usbi_mutex_unlock(&ctx->pollfd_modify_lock);
+	/* record that we are messing with poll fds */
+	usbi_mutex_lock(&ctx->pollfd_modify_lock);
+	ctx->pollfd_modify++;
+	usbi_mutex_unlock(&ctx->pollfd_modify_lock);
 
-  /* write some data on control pipe to interrupt event handlers */
-  r = usbi_write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
-  if (r <= 0) {
-    usbi_warn(ctx, "internal signalling write failed");
-    usbi_mutex_lock(&ctx->pollfd_modify_lock);
-    ctx->pollfd_modify--;
-    usbi_mutex_unlock(&ctx->pollfd_modify_lock);
-    return;
-  }
+	/* write some data on control pipe to interrupt event handlers */
+	r = usbi_write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
+	if (r <= 0) {
+		usbi_warn(ctx, "internal signalling write failed");
+		usbi_mutex_lock(&ctx->pollfd_modify_lock);
+		ctx->pollfd_modify--;
+		usbi_mutex_unlock(&ctx->pollfd_modify_lock);
+		return;
+	}
 
-  /* take event handling lock */
-  libusb_lock_events(ctx);
+	/* take event handling lock */
+	libusb_lock_events(ctx);
 
-  /* read the dummy data */
-  r = usbi_read(ctx->ctrl_pipe[0], &dummy, sizeof(dummy));
-  if (r <= 0)
-    usbi_warn(ctx, "internal signalling read failed");
+	/* read the dummy data */
+	r = usbi_read(ctx->ctrl_pipe[0], &dummy, sizeof(dummy));
+	if (r <= 0)
+		usbi_warn(ctx, "internal signalling read failed");
 
-  /* we're done with modifying poll fds */
-  usbi_mutex_lock(&ctx->pollfd_modify_lock);
-  ctx->pollfd_modify--;
-  usbi_mutex_unlock(&ctx->pollfd_modify_lock);
+	/* we're done with modifying poll fds */
+	usbi_mutex_lock(&ctx->pollfd_modify_lock);
+	ctx->pollfd_modify--;
+	usbi_mutex_unlock(&ctx->pollfd_modify_lock);
 
-  /* Release event handling lock and wake up event waiters */
-  libusb_unlock_events(ctx);
+	/* Release event handling lock and wake up event waiters */
+	libusb_unlock_events(ctx);
 }
 
 /** \ingroup dev
@@ -999,55 +999,55 @@ void usbi_fd_notification(struct libusb_context *ctx)
  * \returns another LIBUSB_ERROR code on other failure
  */
 int API_EXPORTED libusb_open(libusb_device *dev,
-  libusb_device_handle **handle)
+	libusb_device_handle **handle)
 {
-  struct libusb_context *ctx = DEVICE_CTX(dev);
-  struct libusb_device_handle *_handle;
-  size_t priv_size = usbi_backend->device_handle_priv_size;
-  int r;
-  usbi_dbg("open %d.%d", dev->bus_number, dev->device_address);
+	struct libusb_context *ctx = DEVICE_CTX(dev);
+	struct libusb_device_handle *_handle;
+	size_t priv_size = usbi_backend->device_handle_priv_size;
+	int r;
+	usbi_dbg("open %d.%d", dev->bus_number, dev->device_address);
 
-  if (!dev->attached) {
-    return LIBUSB_ERROR_NO_DEVICE;
-  }
+	if (!dev->attached) {
+		return LIBUSB_ERROR_NO_DEVICE;
+	}
 
-  _handle = malloc(sizeof(*_handle) + priv_size);
-  if (!_handle)
-    return LIBUSB_ERROR_NO_MEM;
+	_handle = malloc(sizeof(*_handle) + priv_size);
+	if (!_handle)
+		return LIBUSB_ERROR_NO_MEM;
 
-  r = usbi_mutex_init(&_handle->lock, NULL);
-  if (r) {
-    free(_handle);
-    return LIBUSB_ERROR_OTHER;
-  }
+	r = usbi_mutex_init(&_handle->lock, NULL);
+	if (r) {
+		free(_handle);
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  _handle->dev = libusb_ref_device(dev);
-  _handle->claimed_interfaces = 0;
-  memset(&_handle->os_priv, 0, priv_size);
+	_handle->dev = libusb_ref_device(dev);
+	_handle->claimed_interfaces = 0;
+	memset(&_handle->os_priv, 0, priv_size);
 
-  r = usbi_backend->open(_handle);
-  if (r < 0) {
-    usbi_dbg("open %d.%d returns %d", dev->bus_number, dev->device_address, r);
-    libusb_unref_device(dev);
-    usbi_mutex_destroy(&_handle->lock);
-    free(_handle);
-    return r;
-  }
+	r = usbi_backend->open(_handle);
+	if (r < 0) {
+		usbi_dbg("open %d.%d returns %d", dev->bus_number, dev->device_address, r);
+		libusb_unref_device(dev);
+		usbi_mutex_destroy(&_handle->lock);
+		free(_handle);
+		return r;
+	}
 
-  usbi_mutex_lock(&ctx->open_devs_lock);
-  list_add(&_handle->list, &ctx->open_devs);
-  usbi_mutex_unlock(&ctx->open_devs_lock);
-  *handle = _handle;
+	usbi_mutex_lock(&ctx->open_devs_lock);
+	list_add(&_handle->list, &ctx->open_devs);
+	usbi_mutex_unlock(&ctx->open_devs_lock);
+	*handle = _handle;
 
-  /* At this point, we want to interrupt any existing event handlers so
-   * that they realise the addition of the new device's poll fd. One
-   * example when this is desirable is if the user is running a separate
-   * dedicated libusb events handling thread, which is running with a long
-   * or infinite timeout. We want to interrupt that iteration of the loop,
-   * so that it picks up the new fd, and then continues. */
-  usbi_fd_notification(ctx);
+	/* At this point, we want to interrupt any existing event handlers so
+	 * that they realise the addition of the new device's poll fd. One
+	 * example when this is desirable is if the user is running a separate
+	 * dedicated libusb events handling thread, which is running with a long
+	 * or infinite timeout. We want to interrupt that iteration of the loop,
+	 * so that it picks up the new fd, and then continues. */
+	usbi_fd_notification(ctx);
 
-  return 0;
+	return 0;
 }
 
 /** \ingroup dev
@@ -1068,96 +1068,96 @@ int API_EXPORTED libusb_open(libusb_device *dev,
  * device could not be found. */
 DEFAULT_VISIBILITY
 libusb_device_handle * LIBUSB_CALL libusb_open_device_with_vid_pid(
-  libusb_context *ctx, uint16_t vendor_id, uint16_t product_id)
+	libusb_context *ctx, uint16_t vendor_id, uint16_t product_id)
 {
-  struct libusb_device **devs;
-  struct libusb_device *found = NULL;
-  struct libusb_device *dev;
-  struct libusb_device_handle *handle = NULL;
-  size_t i = 0;
-  int r;
+	struct libusb_device **devs;
+	struct libusb_device *found = NULL;
+	struct libusb_device *dev;
+	struct libusb_device_handle *handle = NULL;
+	size_t i = 0;
+	int r;
 
-  if (libusb_get_device_list(ctx, &devs) < 0)
-    return NULL;
+	if (libusb_get_device_list(ctx, &devs) < 0)
+		return NULL;
 
-  while ((dev = devs[i++]) != NULL) {
-    struct libusb_device_descriptor desc;
-    r = libusb_get_device_descriptor(dev, &desc);
-    if (r < 0)
-      goto out;
-    if (desc.idVendor == vendor_id && desc.idProduct == product_id) {
-      found = dev;
-      break;
-    }
-  }
+	while ((dev = devs[i++]) != NULL) {
+		struct libusb_device_descriptor desc;
+		r = libusb_get_device_descriptor(dev, &desc);
+		if (r < 0)
+			goto out;
+		if (desc.idVendor == vendor_id && desc.idProduct == product_id) {
+			found = dev;
+			break;
+		}
+	}
 
-  if (found) {
-    r = libusb_open(found, &handle);
-    if (r < 0)
-      handle = NULL;
-  }
+	if (found) {
+		r = libusb_open(found, &handle);
+		if (r < 0)
+			handle = NULL;
+	}
 
 out:
-  libusb_free_device_list(devs, 1);
-  return handle;
+	libusb_free_device_list(devs, 1);
+	return handle;
 }
 
 static void do_close(struct libusb_context *ctx,
-  struct libusb_device_handle *dev_handle)
+	struct libusb_device_handle *dev_handle)
 {
-  struct usbi_transfer *itransfer;
-  struct usbi_transfer *tmp;
+	struct usbi_transfer *itransfer;
+	struct usbi_transfer *tmp;
 
-  libusb_lock_events(ctx);
+	libusb_lock_events(ctx);
 
-  /* remove any transfers in flight that are for this device */
-  usbi_mutex_lock(&ctx->flying_transfers_lock);
+	/* remove any transfers in flight that are for this device */
+	usbi_mutex_lock(&ctx->flying_transfers_lock);
 
-  /* safe iteration because transfers may be being deleted */
-  list_for_each_entry_safe(itransfer, tmp, &ctx->flying_transfers, list, struct usbi_transfer) {
-    struct libusb_transfer *transfer =
-            USBI_TRANSFER_TO_LIBUSB_TRANSFER(itransfer);
+	/* safe iteration because transfers may be being deleted */
+	list_for_each_entry_safe(itransfer, tmp, &ctx->flying_transfers, list, struct usbi_transfer) {
+		struct libusb_transfer *transfer =
+		        USBI_TRANSFER_TO_LIBUSB_TRANSFER(itransfer);
 
-    if (transfer->dev_handle != dev_handle)
-      continue;
+		if (transfer->dev_handle != dev_handle)
+			continue;
 
-    if (!(itransfer->flags & USBI_TRANSFER_DEVICE_DISAPPEARED)) {
-      usbi_err(ctx, "Device handle closed while transfer was still being processed, but the device is still connected as far as we know");
+		if (!(itransfer->flags & USBI_TRANSFER_DEVICE_DISAPPEARED)) {
+			usbi_err(ctx, "Device handle closed while transfer was still being processed, but the device is still connected as far as we know");
 
-      if (itransfer->flags & USBI_TRANSFER_CANCELLING)
-        usbi_warn(ctx, "A cancellation for an in-flight transfer hasn't completed but closing the device handle");
-      else
-        usbi_err(ctx, "A cancellation hasn't even been scheduled on the transfer for which the device is closing");
-    }
+			if (itransfer->flags & USBI_TRANSFER_CANCELLING)
+				usbi_warn(ctx, "A cancellation for an in-flight transfer hasn't completed but closing the device handle");
+			else
+				usbi_err(ctx, "A cancellation hasn't even been scheduled on the transfer for which the device is closing");
+		}
 
-    /* remove from the list of in-flight transfers and make sure
-     * we don't accidentally use the device handle in the future
-     * (or that such accesses will be easily caught and identified as a crash)
-     */
-    usbi_mutex_lock(&itransfer->lock);
-    list_del(&itransfer->list);
-    transfer->dev_handle = NULL;
-    usbi_mutex_unlock(&itransfer->lock);
+		/* remove from the list of in-flight transfers and make sure
+		 * we don't accidentally use the device handle in the future
+		 * (or that such accesses will be easily caught and identified as a crash)
+		 */
+		usbi_mutex_lock(&itransfer->lock);
+		list_del(&itransfer->list);
+		transfer->dev_handle = NULL;
+		usbi_mutex_unlock(&itransfer->lock);
 
-    /* it is up to the user to free up the actual transfer struct.  this is
-     * just making sure that we don't attempt to process the transfer after
-     * the device handle is invalid
-     */
-    usbi_dbg("Removed transfer %p from the in-flight list because device handle %p closed",
-       transfer, dev_handle);
-  }
-  usbi_mutex_unlock(&ctx->flying_transfers_lock);
+		/* it is up to the user to free up the actual transfer struct.  this is
+		 * just making sure that we don't attempt to process the transfer after
+		 * the device handle is invalid
+		 */
+		usbi_dbg("Removed transfer %p from the in-flight list because device handle %p closed",
+			 transfer, dev_handle);
+	}
+	usbi_mutex_unlock(&ctx->flying_transfers_lock);
 
-  libusb_unlock_events(ctx);
+	libusb_unlock_events(ctx);
 
-  usbi_mutex_lock(&ctx->open_devs_lock);
-  list_del(&dev_handle->list);
-  usbi_mutex_unlock(&ctx->open_devs_lock);
+	usbi_mutex_lock(&ctx->open_devs_lock);
+	list_del(&dev_handle->list);
+	usbi_mutex_unlock(&ctx->open_devs_lock);
 
-  usbi_backend->close(dev_handle);
-  libusb_unref_device(dev_handle->dev);
-  usbi_mutex_destroy(&dev_handle->lock);
-  free(dev_handle);
+	usbi_backend->close(dev_handle);
+	libusb_unref_device(dev_handle->dev);
+	usbi_mutex_destroy(&dev_handle->lock);
+	free(dev_handle);
 }
 
 /** \ingroup dev
@@ -1173,56 +1173,56 @@ static void do_close(struct libusb_context *ctx,
  */
 void API_EXPORTED libusb_close(libusb_device_handle *dev_handle)
 {
-  struct libusb_context *ctx;
-  unsigned char dummy = 1;
-  ssize_t r;
+	struct libusb_context *ctx;
+	unsigned char dummy = 1;
+	ssize_t r;
 
-  if (!dev_handle)
-    return;
-  usbi_dbg("");
+	if (!dev_handle)
+		return;
+	usbi_dbg("");
 
-  ctx = HANDLE_CTX(dev_handle);
+	ctx = HANDLE_CTX(dev_handle);
 
-  /* Similarly to libusb_open(), we want to interrupt all event handlers
-   * at this point. More importantly, we want to perform the actual close of
-   * the device while holding the event handling lock (preventing any other
-   * thread from doing event handling) because we will be removing a file
-   * descriptor from the polling loop. */
+	/* Similarly to libusb_open(), we want to interrupt all event handlers
+	 * at this point. More importantly, we want to perform the actual close of
+	 * the device while holding the event handling lock (preventing any other
+	 * thread from doing event handling) because we will be removing a file
+	 * descriptor from the polling loop. */
 
-  /* record that we are messing with poll fds */
-  usbi_mutex_lock(&ctx->pollfd_modify_lock);
-  ctx->pollfd_modify++;
-  usbi_mutex_unlock(&ctx->pollfd_modify_lock);
+	/* record that we are messing with poll fds */
+	usbi_mutex_lock(&ctx->pollfd_modify_lock);
+	ctx->pollfd_modify++;
+	usbi_mutex_unlock(&ctx->pollfd_modify_lock);
 
-  /* write some data on control pipe to interrupt event handlers */
-  r = usbi_write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
-  if (r <= 0) {
-    usbi_warn(ctx, "internal signalling write failed, closing anyway");
-    do_close(ctx, dev_handle);
-    usbi_mutex_lock(&ctx->pollfd_modify_lock);
-    ctx->pollfd_modify--;
-    usbi_mutex_unlock(&ctx->pollfd_modify_lock);
-    return;
-  }
+	/* write some data on control pipe to interrupt event handlers */
+	r = usbi_write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
+	if (r <= 0) {
+		usbi_warn(ctx, "internal signalling write failed, closing anyway");
+		do_close(ctx, dev_handle);
+		usbi_mutex_lock(&ctx->pollfd_modify_lock);
+		ctx->pollfd_modify--;
+		usbi_mutex_unlock(&ctx->pollfd_modify_lock);
+		return;
+	}
 
-  /* take event handling lock */
-  libusb_lock_events(ctx);
+	/* take event handling lock */
+	libusb_lock_events(ctx);
 
-  /* read the dummy data */
-  r = usbi_read(ctx->ctrl_pipe[0], &dummy, sizeof(dummy));
-  if (r <= 0)
-    usbi_warn(ctx, "internal signalling read failed, closing anyway");
+	/* read the dummy data */
+	r = usbi_read(ctx->ctrl_pipe[0], &dummy, sizeof(dummy));
+	if (r <= 0)
+		usbi_warn(ctx, "internal signalling read failed, closing anyway");
 
-  /* Close the device */
-  do_close(ctx, dev_handle);
+	/* Close the device */
+	do_close(ctx, dev_handle);
 
-  /* we're done with modifying poll fds */
-  usbi_mutex_lock(&ctx->pollfd_modify_lock);
-  ctx->pollfd_modify--;
-  usbi_mutex_unlock(&ctx->pollfd_modify_lock);
+	/* we're done with modifying poll fds */
+	usbi_mutex_lock(&ctx->pollfd_modify_lock);
+	ctx->pollfd_modify--;
+	usbi_mutex_unlock(&ctx->pollfd_modify_lock);
 
-  /* Release event handling lock and wake up event waiters */
-  libusb_unlock_events(ctx);
+	/* Release event handling lock and wake up event waiters */
+	libusb_unlock_events(ctx);
 }
 
 /** \ingroup dev
@@ -1235,7 +1235,7 @@ void API_EXPORTED libusb_close(libusb_device_handle *dev_handle)
 DEFAULT_VISIBILITY
 libusb_device * LIBUSB_CALL libusb_get_device(libusb_device_handle *dev_handle)
 {
-  return dev_handle->dev;
+	return dev_handle->dev;
 }
 
 /** \ingroup dev
@@ -1259,34 +1259,34 @@ libusb_device * LIBUSB_CALL libusb_get_device(libusb_device_handle *dev_handle)
  * \returns another LIBUSB_ERROR code on other failure
  */
 int API_EXPORTED libusb_get_configuration(libusb_device_handle *dev,
-  int *config)
+	int *config)
 {
-  int r = LIBUSB_ERROR_NOT_SUPPORTED;
+	int r = LIBUSB_ERROR_NOT_SUPPORTED;
 
-  usbi_dbg("");
-  if (usbi_backend->get_configuration)
-    r = usbi_backend->get_configuration(dev, config);
+	usbi_dbg("");
+	if (usbi_backend->get_configuration)
+		r = usbi_backend->get_configuration(dev, config);
 
-  if (r == LIBUSB_ERROR_NOT_SUPPORTED) {
-    uint8_t tmp = 0;
-    usbi_dbg("falling back to control message");
-    r = libusb_control_transfer(dev, LIBUSB_ENDPOINT_IN,
-      LIBUSB_REQUEST_GET_CONFIGURATION, 0, 0, &tmp, 1, 1000);
-    if (r == 0) {
-      usbi_err(HANDLE_CTX(dev), "zero bytes returned in ctrl transfer?");
-      r = LIBUSB_ERROR_IO;
-    } else if (r == 1) {
-      r = 0;
-      *config = tmp;
-    } else {
-      usbi_dbg("control failed, error %d", r);
-    }
-  }
+	if (r == LIBUSB_ERROR_NOT_SUPPORTED) {
+		uint8_t tmp = 0;
+		usbi_dbg("falling back to control message");
+		r = libusb_control_transfer(dev, LIBUSB_ENDPOINT_IN,
+			LIBUSB_REQUEST_GET_CONFIGURATION, 0, 0, &tmp, 1, 1000);
+		if (r == 0) {
+			usbi_err(HANDLE_CTX(dev), "zero bytes returned in ctrl transfer?");
+			r = LIBUSB_ERROR_IO;
+		} else if (r == 1) {
+			r = 0;
+			*config = tmp;
+		} else {
+			usbi_dbg("control failed, error %d", r);
+		}
+	}
 
-  if (r == 0)
-    usbi_dbg("active config %d", *config);
+	if (r == 0)
+		usbi_dbg("active config %d", *config);
 
-  return r;
+	return r;
 }
 
 /** \ingroup dev
@@ -1328,10 +1328,10 @@ int API_EXPORTED libusb_get_configuration(libusb_device_handle *dev,
  * \returns another LIBUSB_ERROR code on other failure
  */
 int API_EXPORTED libusb_set_configuration(libusb_device_handle *dev,
-  int configuration)
+	int configuration)
 {
-  usbi_dbg("configuration %d", configuration);
-  return usbi_backend->set_configuration(dev, configuration);
+	usbi_dbg("configuration %d", configuration);
+	return usbi_backend->set_configuration(dev, configuration);
 }
 
 /** \ingroup dev
@@ -1359,28 +1359,28 @@ int API_EXPORTED libusb_set_configuration(libusb_device_handle *dev,
  * \returns a LIBUSB_ERROR code on other failure
  */
 int API_EXPORTED libusb_claim_interface(libusb_device_handle *dev,
-  int interface_number)
+	int interface_number)
 {
-  int r = 0;
+	int r = 0;
 
-  usbi_dbg("interface %d", interface_number);
-  if (interface_number >= USB_MAXINTERFACES)
-    return LIBUSB_ERROR_INVALID_PARAM;
+	usbi_dbg("interface %d", interface_number);
+	if (interface_number >= USB_MAXINTERFACES)
+		return LIBUSB_ERROR_INVALID_PARAM;
 
-  if (!dev->dev->attached)
-    return LIBUSB_ERROR_NO_DEVICE;
+	if (!dev->dev->attached)
+		return LIBUSB_ERROR_NO_DEVICE;
 
-  usbi_mutex_lock(&dev->lock);
-  if (dev->claimed_interfaces & (1 << interface_number))
-    goto out;
+	usbi_mutex_lock(&dev->lock);
+	if (dev->claimed_interfaces & (1 << interface_number))
+		goto out;
 
-  r = usbi_backend->claim_interface(dev, interface_number);
-  if (r == 0)
-    dev->claimed_interfaces |= 1 << interface_number;
+	r = usbi_backend->claim_interface(dev, interface_number);
+	if (r == 0)
+		dev->claimed_interfaces |= 1 << interface_number;
 
 out:
-  usbi_mutex_unlock(&dev->lock);
-  return r;
+	usbi_mutex_unlock(&dev->lock);
+	return r;
 }
 
 /** \ingroup dev
@@ -1399,27 +1399,27 @@ out:
  * \returns another LIBUSB_ERROR code on other failure
  */
 int API_EXPORTED libusb_release_interface(libusb_device_handle *dev,
-  int interface_number)
+	int interface_number)
 {
-  int r;
+	int r;
 
-  usbi_dbg("interface %d", interface_number);
-  if (interface_number >= USB_MAXINTERFACES)
-    return LIBUSB_ERROR_INVALID_PARAM;
+	usbi_dbg("interface %d", interface_number);
+	if (interface_number >= USB_MAXINTERFACES)
+		return LIBUSB_ERROR_INVALID_PARAM;
 
-  usbi_mutex_lock(&dev->lock);
-  if (!(dev->claimed_interfaces & (1 << interface_number))) {
-    r = LIBUSB_ERROR_NOT_FOUND;
-    goto out;
-  }
+	usbi_mutex_lock(&dev->lock);
+	if (!(dev->claimed_interfaces & (1 << interface_number))) {
+		r = LIBUSB_ERROR_NOT_FOUND;
+		goto out;
+	}
 
-  r = usbi_backend->release_interface(dev, interface_number);
-  if (r == 0)
-    dev->claimed_interfaces &= ~(1 << interface_number);
+	r = usbi_backend->release_interface(dev, interface_number);
+	if (r == 0)
+		dev->claimed_interfaces &= ~(1 << interface_number);
 
 out:
-  usbi_mutex_unlock(&dev->lock);
-  return r;
+	usbi_mutex_unlock(&dev->lock);
+	return r;
 }
 
 /** \ingroup dev
@@ -1444,27 +1444,27 @@ out:
  * \returns another LIBUSB_ERROR code on other failure
  */
 int API_EXPORTED libusb_set_interface_alt_setting(libusb_device_handle *dev,
-  int interface_number, int alternate_setting)
+	int interface_number, int alternate_setting)
 {
-  usbi_dbg("interface %d altsetting %d",
-    interface_number, alternate_setting);
-  if (interface_number >= USB_MAXINTERFACES)
-    return LIBUSB_ERROR_INVALID_PARAM;
+	usbi_dbg("interface %d altsetting %d",
+		interface_number, alternate_setting);
+	if (interface_number >= USB_MAXINTERFACES)
+		return LIBUSB_ERROR_INVALID_PARAM;
 
-  usbi_mutex_lock(&dev->lock);
-  if (!dev->dev->attached) {
-    usbi_mutex_unlock(&dev->lock);
-    return LIBUSB_ERROR_NO_DEVICE;
-  }
+	usbi_mutex_lock(&dev->lock);
+	if (!dev->dev->attached) {
+		usbi_mutex_unlock(&dev->lock);
+		return LIBUSB_ERROR_NO_DEVICE;
+	}
 
-  if (!(dev->claimed_interfaces & (1 << interface_number))) {
-    usbi_mutex_unlock(&dev->lock);
-    return LIBUSB_ERROR_NOT_FOUND;
-  }
-  usbi_mutex_unlock(&dev->lock);
+	if (!(dev->claimed_interfaces & (1 << interface_number))) {
+		usbi_mutex_unlock(&dev->lock);
+		return LIBUSB_ERROR_NOT_FOUND;
+	}
+	usbi_mutex_unlock(&dev->lock);
 
-  return usbi_backend->set_interface_altsetting(dev, interface_number,
-    alternate_setting);
+	return usbi_backend->set_interface_altsetting(dev, interface_number,
+		alternate_setting);
 }
 
 /** \ingroup dev
@@ -1484,13 +1484,13 @@ int API_EXPORTED libusb_set_interface_alt_setting(libusb_device_handle *dev,
  * \returns another LIBUSB_ERROR code on other failure
  */
 int API_EXPORTED libusb_clear_halt(libusb_device_handle *dev,
-  unsigned char endpoint)
+	unsigned char endpoint)
 {
-  usbi_dbg("endpoint %x", endpoint);
-  if (!dev->dev->attached)
-    return LIBUSB_ERROR_NO_DEVICE;
+	usbi_dbg("endpoint %x", endpoint);
+	if (!dev->dev->attached)
+		return LIBUSB_ERROR_NO_DEVICE;
 
-  return usbi_backend->clear_halt(dev, endpoint);
+	return usbi_backend->clear_halt(dev, endpoint);
 }
 
 /** \ingroup dev
@@ -1514,11 +1514,11 @@ int API_EXPORTED libusb_clear_halt(libusb_device_handle *dev,
  */
 int API_EXPORTED libusb_reset_device(libusb_device_handle *dev)
 {
-  usbi_dbg("");
-  if (!dev->dev->attached)
-    return LIBUSB_ERROR_NO_DEVICE;
+	usbi_dbg("");
+	if (!dev->dev->attached)
+		return LIBUSB_ERROR_NO_DEVICE;
 
-  return usbi_backend->reset_device(dev);
+	return usbi_backend->reset_device(dev);
 }
 
 /** \ingroup dev
@@ -1539,17 +1539,17 @@ int API_EXPORTED libusb_reset_device(libusb_device_handle *dev)
  * \see libusb_detach_kernel_driver()
  */
 int API_EXPORTED libusb_kernel_driver_active(libusb_device_handle *dev,
-  int interface_number)
+	int interface_number)
 {
-  usbi_dbg("interface %d", interface_number);
+	usbi_dbg("interface %d", interface_number);
 
-  if (!dev->dev->attached)
-    return LIBUSB_ERROR_NO_DEVICE;
+	if (!dev->dev->attached)
+		return LIBUSB_ERROR_NO_DEVICE;
 
-  if (usbi_backend->kernel_driver_active)
-    return usbi_backend->kernel_driver_active(dev, interface_number);
-  else
-    return LIBUSB_ERROR_NOT_SUPPORTED;
+	if (usbi_backend->kernel_driver_active)
+		return usbi_backend->kernel_driver_active(dev, interface_number);
+	else
+		return LIBUSB_ERROR_NOT_SUPPORTED;
 }
 
 /** \ingroup dev
@@ -1570,17 +1570,17 @@ int API_EXPORTED libusb_kernel_driver_active(libusb_device_handle *dev,
  * \see libusb_kernel_driver_active()
  */
 int API_EXPORTED libusb_detach_kernel_driver(libusb_device_handle *dev,
-  int interface_number)
+	int interface_number)
 {
-  usbi_dbg("interface %d", interface_number);
+	usbi_dbg("interface %d", interface_number);
 
-  if (!dev->dev->attached)
-    return LIBUSB_ERROR_NO_DEVICE;
+	if (!dev->dev->attached)
+		return LIBUSB_ERROR_NO_DEVICE;
 
-  if (usbi_backend->detach_kernel_driver)
-    return usbi_backend->detach_kernel_driver(dev, interface_number);
-  else
-    return LIBUSB_ERROR_NOT_SUPPORTED;
+	if (usbi_backend->detach_kernel_driver)
+		return usbi_backend->detach_kernel_driver(dev, interface_number);
+	else
+		return LIBUSB_ERROR_NOT_SUPPORTED;
 }
 
 /** \ingroup dev
@@ -1604,17 +1604,17 @@ int API_EXPORTED libusb_detach_kernel_driver(libusb_device_handle *dev,
  * \see libusb_kernel_driver_active()
  */
 int API_EXPORTED libusb_attach_kernel_driver(libusb_device_handle *dev,
-  int interface_number)
+	int interface_number)
 {
-  usbi_dbg("interface %d", interface_number);
+	usbi_dbg("interface %d", interface_number);
 
-  if (!dev->dev->attached)
-    return LIBUSB_ERROR_NO_DEVICE;
+	if (!dev->dev->attached)
+		return LIBUSB_ERROR_NO_DEVICE;
 
-  if (usbi_backend->attach_kernel_driver)
-    return usbi_backend->attach_kernel_driver(dev, interface_number);
-  else
-    return LIBUSB_ERROR_NOT_SUPPORTED;
+	if (usbi_backend->attach_kernel_driver)
+		return usbi_backend->attach_kernel_driver(dev, interface_number);
+	else
+		return LIBUSB_ERROR_NOT_SUPPORTED;
 }
 
 /** \ingroup lib
@@ -1648,9 +1648,9 @@ int API_EXPORTED libusb_attach_kernel_driver(libusb_device_handle *dev,
  */
 void API_EXPORTED libusb_set_debug(libusb_context *ctx, int level)
 {
-  USBI_GET_CONTEXT(ctx);
-  if (!ctx->debug_fixed)
-    ctx->debug = level;
+	USBI_GET_CONTEXT(ctx);
+	if (!ctx->debug_fixed)
+		ctx->debug = level;
 }
 
 /** \ingroup lib
@@ -1668,95 +1668,95 @@ void API_EXPORTED libusb_set_debug(libusb_context *ctx, int level)
  */
 int API_EXPORTED libusb_init(libusb_context **context)
 {
-  struct libusb_device *dev, *next;
-  char *dbg = getenv("LIBUSB_DEBUG");
-  struct libusb_context *ctx;
-  static int first_init = 1;
-  int r = 0;
+	struct libusb_device *dev, *next;
+	char *dbg = getenv("LIBUSB_DEBUG");
+	struct libusb_context *ctx;
+	static int first_init = 1;
+	int r = 0;
 
-  usbi_mutex_static_lock(&default_context_lock);
-  if (!context && usbi_default_context) {
-    usbi_dbg("reusing default context");
-    default_context_refcnt++;
-    usbi_mutex_static_unlock(&default_context_lock);
-    return 0;
-  }
+	usbi_mutex_static_lock(&default_context_lock);
+	if (!context && usbi_default_context) {
+		usbi_dbg("reusing default context");
+		default_context_refcnt++;
+		usbi_mutex_static_unlock(&default_context_lock);
+		return 0;
+	}
 
-  ctx = malloc(sizeof(*ctx));
-  if (!ctx) {
-    r = LIBUSB_ERROR_NO_MEM;
-    goto err_unlock;
-  }
-  memset(ctx, 0, sizeof(*ctx));
+	ctx = malloc(sizeof(*ctx));
+	if (!ctx) {
+		r = LIBUSB_ERROR_NO_MEM;
+		goto err_unlock;
+	}
+	memset(ctx, 0, sizeof(*ctx));
 
-  if (dbg) {
-    ctx->debug = atoi(dbg);
-    if (ctx->debug)
-      ctx->debug_fixed = 1;
-  }
+	if (dbg) {
+		ctx->debug = atoi(dbg);
+		if (ctx->debug)
+			ctx->debug_fixed = 1;
+	}
 
-  usbi_dbg("libusb-%d.%d.%d%s%s%s",
-           libusb_version_internal.major,
-           libusb_version_internal.minor,
-           libusb_version_internal.micro,
-           libusb_version_internal.rc,
-           libusb_version_internal.describe[0] ? " git:" : "",
-           libusb_version_internal.describe);
+	usbi_dbg("libusb-%d.%d.%d%s%s%s",
+	         libusb_version_internal.major,
+	         libusb_version_internal.minor,
+	         libusb_version_internal.micro,
+	         libusb_version_internal.rc,
+	         libusb_version_internal.describe[0] ? " git:" : "",
+	         libusb_version_internal.describe);
 
-  usbi_mutex_init(&ctx->usb_devs_lock, NULL);
-  usbi_mutex_init(&ctx->open_devs_lock, NULL);
-  usbi_mutex_init(&ctx->hotplug_cbs_lock, NULL);
-  list_init(&ctx->usb_devs);
-  list_init(&ctx->open_devs);
-  list_init(&ctx->hotplug_cbs);
+	usbi_mutex_init(&ctx->usb_devs_lock, NULL);
+	usbi_mutex_init(&ctx->open_devs_lock, NULL);
+	usbi_mutex_init(&ctx->hotplug_cbs_lock, NULL);
+	list_init(&ctx->usb_devs);
+	list_init(&ctx->open_devs);
+	list_init(&ctx->hotplug_cbs);
 
-  if (usbi_backend->init) {
-    r = usbi_backend->init(ctx);
-    if (r)
-      goto err_free_ctx;
-  }
+	if (usbi_backend->init) {
+		r = usbi_backend->init(ctx);
+		if (r)
+			goto err_free_ctx;
+	}
 
-  r = usbi_io_init(ctx);
-  if (r < 0) {
-    if (usbi_backend->exit)
-      usbi_backend->exit();
-    goto err_destroy_mutex;
-  }
+	r = usbi_io_init(ctx);
+	if (r < 0) {
+		if (usbi_backend->exit)
+			usbi_backend->exit();
+		goto err_destroy_mutex;
+	}
 
-  if (context) {
-    *context = ctx;
-  } else if (!usbi_default_context) {
-    usbi_dbg("created default context");
-    usbi_default_context = ctx;
-    default_context_refcnt++;
-  }
-  usbi_mutex_static_unlock(&default_context_lock);
+	if (context) {
+		*context = ctx;
+	} else if (!usbi_default_context) {
+		usbi_dbg("created default context");
+		usbi_default_context = ctx;
+		default_context_refcnt++;
+	}
+	usbi_mutex_static_unlock(&default_context_lock);
 
-  usbi_mutex_static_lock(&active_contexts_lock);
-  if (first_init) {
-    first_init = 0;
-    list_init (&active_contexts_list);
-  }
+	usbi_mutex_static_lock(&active_contexts_lock);
+	if (first_init) {
+		first_init = 0;
+		list_init (&active_contexts_list);
+	}
 
-  list_add (&ctx->list, &active_contexts_list);
-  usbi_mutex_static_unlock(&active_contexts_lock);
+	list_add (&ctx->list, &active_contexts_list);
+	usbi_mutex_static_unlock(&active_contexts_lock);
 
-  return 0;
+	return 0;
 
 err_destroy_mutex:
-  usbi_mutex_destroy(&ctx->open_devs_lock);
-  usbi_mutex_destroy(&ctx->usb_devs_lock);
+	usbi_mutex_destroy(&ctx->open_devs_lock);
+	usbi_mutex_destroy(&ctx->usb_devs_lock);
 err_free_ctx:
-  usbi_mutex_lock(&ctx->usb_devs_lock);
-  list_for_each_entry_safe(dev, next, &ctx->usb_devs, list, struct libusb_device) {
-    list_del(&dev->list);
-    libusb_unref_device(dev);
-  }
-  usbi_mutex_unlock(&ctx->usb_devs_lock);
-  free(ctx);
+	usbi_mutex_lock(&ctx->usb_devs_lock);
+	list_for_each_entry_safe(dev, next, &ctx->usb_devs, list, struct libusb_device) {
+		list_del(&dev->list);
+		libusb_unref_device(dev);
+	}
+	usbi_mutex_unlock(&ctx->usb_devs_lock);
+	free(ctx);
 err_unlock:
-  usbi_mutex_static_unlock(&default_context_lock);
-  return r;
+	usbi_mutex_static_unlock(&default_context_lock);
+	return r;
 }
 
 /** \ingroup lib
@@ -1766,51 +1766,51 @@ err_unlock:
  */
 void API_EXPORTED libusb_exit(struct libusb_context *ctx)
 {
-  struct libusb_device *dev, *next;
+	struct libusb_device *dev, *next;
 
-  usbi_dbg("");
-  USBI_GET_CONTEXT(ctx);
+	usbi_dbg("");
+	USBI_GET_CONTEXT(ctx);
 
-  /* if working with default context, only actually do the deinitialization
-   * if we're the last user */
-  if (ctx == usbi_default_context) {
-    usbi_mutex_static_lock(&default_context_lock);
-    if (--default_context_refcnt > 0) {
-      usbi_dbg("not destroying default context");
-      usbi_mutex_static_unlock(&default_context_lock);
-      return;
-    }
-    usbi_dbg("destroying default context");
-    usbi_default_context = NULL;
-    usbi_mutex_static_unlock(&default_context_lock);
-  }
+	/* if working with default context, only actually do the deinitialization
+	 * if we're the last user */
+	if (ctx == usbi_default_context) {
+		usbi_mutex_static_lock(&default_context_lock);
+		if (--default_context_refcnt > 0) {
+			usbi_dbg("not destroying default context");
+			usbi_mutex_static_unlock(&default_context_lock);
+			return;
+		}
+		usbi_dbg("destroying default context");
+		usbi_default_context = NULL;
+		usbi_mutex_static_unlock(&default_context_lock);
+	}
 
-  usbi_mutex_static_lock(&active_contexts_lock);
-  list_del (&ctx->list);
-  usbi_mutex_static_unlock(&active_contexts_lock);
+	usbi_mutex_static_lock(&active_contexts_lock);
+	list_del (&ctx->list);
+	usbi_mutex_static_unlock(&active_contexts_lock);
 
-  usbi_hotplug_deregister_all(ctx);
+	usbi_hotplug_deregister_all(ctx);
 
-  usbi_mutex_lock(&ctx->usb_devs_lock);
-  list_for_each_entry_safe(dev, next, &ctx->usb_devs, list, struct libusb_device) {
-    list_del(&dev->list);
-    libusb_unref_device(dev);
-  }
-  usbi_mutex_unlock(&ctx->usb_devs_lock);
+	usbi_mutex_lock(&ctx->usb_devs_lock);
+	list_for_each_entry_safe(dev, next, &ctx->usb_devs, list, struct libusb_device) {
+		list_del(&dev->list);
+		libusb_unref_device(dev);
+	}
+	usbi_mutex_unlock(&ctx->usb_devs_lock);
 
-  /* a little sanity check. doesn't bother with open_devs locking because
-   * unless there is an application bug, nobody will be accessing this. */
-  if (!list_empty(&ctx->open_devs))
-    usbi_warn(ctx, "application left some devices open");
+	/* a little sanity check. doesn't bother with open_devs locking because
+	 * unless there is an application bug, nobody will be accessing this. */
+	if (!list_empty(&ctx->open_devs))
+		usbi_warn(ctx, "application left some devices open");
 
-  usbi_io_exit(ctx);
-  if (usbi_backend->exit)
-    usbi_backend->exit();
+	usbi_io_exit(ctx);
+	if (usbi_backend->exit)
+		usbi_backend->exit();
 
-  usbi_mutex_destroy(&ctx->open_devs_lock);
-  usbi_mutex_destroy(&ctx->usb_devs_lock);
-  usbi_mutex_destroy(&ctx->hotplug_cbs_lock);
-  free(ctx);
+	usbi_mutex_destroy(&ctx->open_devs_lock);
+	usbi_mutex_destroy(&ctx->usb_devs_lock);
+	usbi_mutex_destroy(&ctx->hotplug_cbs_lock);
+	free(ctx);
 }
 
 /** \ingroup misc
@@ -1821,14 +1821,14 @@ void API_EXPORTED libusb_exit(struct libusb_context *ctx)
  */
 int API_EXPORTED libusb_has_capability(uint32_t capability)
 {
-  enum libusb_capability cap = capability;
-  switch (cap) {
-  case LIBUSB_CAP_HAS_CAPABILITY:
-    return 1;
-  case LIBUSB_CAP_HAS_HOTPLUG:
-    return !(usbi_backend->get_device_list);
-  }
-  return 0;
+	enum libusb_capability cap = capability;
+	switch (cap) {
+	case LIBUSB_CAP_HAS_CAPABILITY:
+		return 1;
+	case LIBUSB_CAP_HAS_HOTPLUG:
+		return !(usbi_backend->get_device_list);
+	}
+	return 0;
 }
 
 /* this is defined in libusbi.h if needed */
@@ -1878,75 +1878,75 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
 #endif
 
 void usbi_log_v(struct libusb_context *ctx, enum usbi_log_level level,
-  const char *function, const char *format, va_list args)
+	const char *function, const char *format, va_list args)
 {
-  FILE *stream = stdout;
-  const char *prefix;
-  struct timeval now;
-  static struct timeval first = { 0, 0 };
+	FILE *stream = stdout;
+	const char *prefix;
+	struct timeval now;
+	static struct timeval first = { 0, 0 };
 
 #ifndef ENABLE_DEBUG_LOGGING
-  USBI_GET_CONTEXT(ctx);
-  if (!ctx)
-    return;
-  if (!ctx->debug)
-    return;
-  if (level == LOG_LEVEL_WARNING && ctx->debug < 2)
-    return;
-  if (level == LOG_LEVEL_INFO && ctx->debug < 3)
-    return;
+	USBI_GET_CONTEXT(ctx);
+	if (!ctx)
+		return;
+	if (!ctx->debug)
+		return;
+	if (level == LOG_LEVEL_WARNING && ctx->debug < 2)
+		return;
+	if (level == LOG_LEVEL_INFO && ctx->debug < 3)
+		return;
 #endif
 
-  usbi_gettimeofday(&now, NULL);
-  if (!first.tv_sec) {
-    first.tv_sec = now.tv_sec;
-    first.tv_usec = now.tv_usec;
-  }
-  if (now.tv_usec < first.tv_usec) {
-    now.tv_sec--;
-    now.tv_usec += 1000000;
-  }
-  now.tv_sec -= first.tv_sec;
-  now.tv_usec -= first.tv_usec;
+	usbi_gettimeofday(&now, NULL);
+	if (!first.tv_sec) {
+		first.tv_sec = now.tv_sec;
+		first.tv_usec = now.tv_usec;
+	}
+	if (now.tv_usec < first.tv_usec) {
+		now.tv_sec--;
+		now.tv_usec += 1000000;
+	}
+	now.tv_sec -= first.tv_sec;
+	now.tv_usec -= first.tv_usec;
 
-  switch (level) {
-  case LOG_LEVEL_INFO:
-    prefix = "info";
-    break;
-  case LOG_LEVEL_WARNING:
-    stream = stderr;
-    prefix = "warning";
-    break;
-  case LOG_LEVEL_ERROR:
-    stream = stderr;
-    prefix = "error";
-    break;
-  case LOG_LEVEL_DEBUG:
-    stream = stderr;
-    prefix = "debug";
-    break;
-  default:
-    stream = stderr;
-    prefix = "unknown";
-    break;
-  }
+	switch (level) {
+	case LOG_LEVEL_INFO:
+		prefix = "info";
+		break;
+	case LOG_LEVEL_WARNING:
+		stream = stderr;
+		prefix = "warning";
+		break;
+	case LOG_LEVEL_ERROR:
+		stream = stderr;
+		prefix = "error";
+		break;
+	case LOG_LEVEL_DEBUG:
+		stream = stderr;
+		prefix = "debug";
+		break;
+	default:
+		stream = stderr;
+		prefix = "unknown";
+		break;
+	}
 
-  fprintf(stream, "libusb: %d.%06d %s [%s] ",
-    (int)now.tv_sec, (int)now.tv_usec, prefix, function);
+	fprintf(stream, "libusb: %d.%06d %s [%s] ",
+		(int)now.tv_sec, (int)now.tv_usec, prefix, function);
 
-  vfprintf(stream, format, args);
+	vfprintf(stream, format, args);
 
-  fprintf(stream, "\n");
+	fprintf(stream, "\n");
 }
 
 void usbi_log(struct libusb_context *ctx, enum usbi_log_level level,
-  const char *function, const char *format, ...)
+	const char *function, const char *format, ...)
 {
-  va_list args;
+	va_list args;
 
-  va_start (args, format);
-  usbi_log_v(ctx, level, function, format, args);
-  va_end (args);
+	va_start (args, format);
+	usbi_log_v(ctx, level, function, format, args);
+	va_end (args);
 }
 
 /** \ingroup misc
@@ -1959,38 +1959,38 @@ void usbi_log(struct libusb_context *ctx, enum usbi_log_level level,
  */
 DEFAULT_VISIBILITY const char * LIBUSB_CALL libusb_error_name(int error_code)
 {
-  enum libusb_error error = error_code;
-  switch (error) {
-  case LIBUSB_SUCCESS:
-    return "LIBUSB_SUCCESS";
-  case LIBUSB_ERROR_IO:
-    return "LIBUSB_ERROR_IO";
-  case LIBUSB_ERROR_INVALID_PARAM:
-    return "LIBUSB_ERROR_INVALID_PARAM";
-  case LIBUSB_ERROR_ACCESS:
-    return "LIBUSB_ERROR_ACCESS";
-  case LIBUSB_ERROR_NO_DEVICE:
-    return "LIBUSB_ERROR_NO_DEVICE";
-  case LIBUSB_ERROR_NOT_FOUND:
-    return "LIBUSB_ERROR_NOT_FOUND";
-  case LIBUSB_ERROR_BUSY:
-    return "LIBUSB_ERROR_BUSY";
-  case LIBUSB_ERROR_TIMEOUT:
-    return "LIBUSB_ERROR_TIMEOUT";
-  case LIBUSB_ERROR_OVERFLOW:
-    return "LIBUSB_ERROR_OVERFLOW";
-  case LIBUSB_ERROR_PIPE:
-    return "LIBUSB_ERROR_PIPE";
-  case LIBUSB_ERROR_INTERRUPTED:
-    return "LIBUSB_ERROR_INTERRUPTED";
-  case LIBUSB_ERROR_NO_MEM:
-    return "LIBUSB_ERROR_NO_MEM";
-  case LIBUSB_ERROR_NOT_SUPPORTED:
-    return "LIBUSB_ERROR_NOT_SUPPORTED";
-  case LIBUSB_ERROR_OTHER:
-    return "LIBUSB_ERROR_OTHER";
-  }
-  return "**UNKNOWN**";
+	enum libusb_error error = error_code;
+	switch (error) {
+	case LIBUSB_SUCCESS:
+		return "LIBUSB_SUCCESS";
+	case LIBUSB_ERROR_IO:
+		return "LIBUSB_ERROR_IO";
+	case LIBUSB_ERROR_INVALID_PARAM:
+		return "LIBUSB_ERROR_INVALID_PARAM";
+	case LIBUSB_ERROR_ACCESS:
+		return "LIBUSB_ERROR_ACCESS";
+	case LIBUSB_ERROR_NO_DEVICE:
+		return "LIBUSB_ERROR_NO_DEVICE";
+	case LIBUSB_ERROR_NOT_FOUND:
+		return "LIBUSB_ERROR_NOT_FOUND";
+	case LIBUSB_ERROR_BUSY:
+		return "LIBUSB_ERROR_BUSY";
+	case LIBUSB_ERROR_TIMEOUT:
+		return "LIBUSB_ERROR_TIMEOUT";
+	case LIBUSB_ERROR_OVERFLOW:
+		return "LIBUSB_ERROR_OVERFLOW";
+	case LIBUSB_ERROR_PIPE:
+		return "LIBUSB_ERROR_PIPE";
+	case LIBUSB_ERROR_INTERRUPTED:
+		return "LIBUSB_ERROR_INTERRUPTED";
+	case LIBUSB_ERROR_NO_MEM:
+		return "LIBUSB_ERROR_NO_MEM";
+	case LIBUSB_ERROR_NOT_SUPPORTED:
+		return "LIBUSB_ERROR_NOT_SUPPORTED";
+	case LIBUSB_ERROR_OTHER:
+		return "LIBUSB_ERROR_OTHER";
+	}
+	return "**UNKNOWN**";
 }
 
 /** \ingroup misc
@@ -2004,38 +2004,38 @@ DEFAULT_VISIBILITY const char * LIBUSB_CALL libusb_error_name(int error_code)
  */
 API_EXPORTED const char* libusb_strerror(enum libusb_error errcode)
 {
-  switch (errcode) {
-  case LIBUSB_SUCCESS:
-    return "Success";
-  case LIBUSB_ERROR_IO:
-    return "Input/output error";
-  case LIBUSB_ERROR_INVALID_PARAM:
-    return "Invalid parameter";
-  case LIBUSB_ERROR_ACCESS:
-    return "Access denied (insufficient permissions)";
-  case LIBUSB_ERROR_NO_DEVICE:
-    return "No such device (it may have been disconnected)";
-  case LIBUSB_ERROR_NOT_FOUND:
-    return "Entity not found";
-  case LIBUSB_ERROR_BUSY:
-    return "Resource busy";
-  case LIBUSB_ERROR_TIMEOUT:
-    return "Operation timed out";
-  case LIBUSB_ERROR_OVERFLOW:
-    return "Overflow";
-  case LIBUSB_ERROR_PIPE:
-    return "Pipe error";
-  case LIBUSB_ERROR_INTERRUPTED:
-    return "System call interrupted (perhaps due to signal)";
-  case LIBUSB_ERROR_NO_MEM:
-    return "Insufficient memory";
-  case LIBUSB_ERROR_NOT_SUPPORTED:
-    return "Operation not supported or unimplemented on this platform";
-  case LIBUSB_ERROR_OTHER:
-    return "Other error";
-  }
+	switch (errcode) {
+	case LIBUSB_SUCCESS:
+		return "Success";
+	case LIBUSB_ERROR_IO:
+		return "Input/output error";
+	case LIBUSB_ERROR_INVALID_PARAM:
+		return "Invalid parameter";
+	case LIBUSB_ERROR_ACCESS:
+		return "Access denied (insufficient permissions)";
+	case LIBUSB_ERROR_NO_DEVICE:
+		return "No such device (it may have been disconnected)";
+	case LIBUSB_ERROR_NOT_FOUND:
+		return "Entity not found";
+	case LIBUSB_ERROR_BUSY:
+		return "Resource busy";
+	case LIBUSB_ERROR_TIMEOUT:
+		return "Operation timed out";
+	case LIBUSB_ERROR_OVERFLOW:
+		return "Overflow";
+	case LIBUSB_ERROR_PIPE:
+		return "Pipe error";
+	case LIBUSB_ERROR_INTERRUPTED:
+		return "System call interrupted (perhaps due to signal)";
+	case LIBUSB_ERROR_NO_MEM:
+		return "Insufficient memory";
+	case LIBUSB_ERROR_NOT_SUPPORTED:
+		return "Operation not supported or unimplemented on this platform";
+	case LIBUSB_ERROR_OTHER:
+		return "Other error";
+	}
 
-  return "Unknown error";
+	return "Unknown error";
 }
 
 /** \ingroup misc
@@ -2045,5 +2045,5 @@ API_EXPORTED const char* libusb_strerror(enum libusb_error errcode)
 DEFAULT_VISIBILITY
 const struct libusb_version * LIBUSB_CALL libusb_get_version(void)
 {
-  return &libusb_version_internal;
+	return &libusb_version_internal;
 }

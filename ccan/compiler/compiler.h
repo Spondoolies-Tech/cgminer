@@ -13,7 +13,7 @@
  * Example:
  * static void COLD moan(const char *reason)
  * {
- *  fprintf(stderr, "Error: %s (%s)\n", reason, strerror(errno));
+ *	fprintf(stderr, "Error: %s (%s)\n", reason, strerror(errno));
  * }
  */
 #define COLD __attribute__((cold))
@@ -32,8 +32,8 @@
  * Example:
  * static void NORETURN fail(const char *reason)
  * {
- *  fprintf(stderr, "Error: %s (%s)\n", reason, strerror(errno));
- *  exit(1);
+ *	fprintf(stderr, "Error: %s (%s)\n", reason, strerror(errno));
+ *	exit(1);
  * }
  */
 #define NORETURN __attribute__((noreturn))
@@ -55,7 +55,7 @@
  * void PRINTF_FMT(2,3) my_printf(const char *prefix, const char *fmt, ...);
  */
 #define PRINTF_FMT(nfmt, narg) \
-  __attribute__((format(__printf__, nfmt, narg)))
+	__attribute__((format(__printf__, nfmt, narg)))
 #else
 #define PRINTF_FMT(nfmt, narg)
 #endif
@@ -91,7 +91,7 @@
  * // With some preprocessor options, this is unnecessary.
  * static UNNEEDED void add_to_counter(int add)
  * {
- *  counter += add;
+ *	counter += add;
  * }
  */
 #define UNNEEDED __attribute__((unused))
@@ -106,12 +106,12 @@
  * the compiler that it must exist even if it (seems) unused.
  *
  * Example:
- *  // Even if this is unused, these are vital for debugging.
- *  static NEEDED int counter;
- *  static NEEDED void dump_counter(void)
- *  {
- *    printf("Counter is %i\n", counter);
- *  }
+ *	// Even if this is unused, these are vital for debugging.
+ *	static NEEDED int counter;
+ *	static NEEDED void dump_counter(void)
+ *	{
+ *		printf("Counter is %i\n", counter);
+ *	}
  */
 #define NEEDED __attribute__((used))
 #else
@@ -129,11 +129,11 @@
  * to the reader that it's deliberate.
  *
  * Example:
- *  // This is used as a callback, so needs to have this prototype.
- *  static int some_callback(void *unused UNUSED)
- *  {
- *    return 0;
- *  }
+ *	// This is used as a callback, so needs to have this prototype.
+ *	static int some_callback(void *unused UNUSED)
+ *	{
+ *		return 0;
+ *	}
  */
 #define UNUSED __attribute__((unused))
 #endif
@@ -163,28 +163,28 @@
  * This can be done using the IS_COMPILE_CONSTANT() macro.
  *
  * Example:
- *  enum greek { ALPHA, BETA, GAMMA, DELTA, EPSILON };
+ *	enum greek { ALPHA, BETA, GAMMA, DELTA, EPSILON };
  *
- *  // Out-of-line version.
- *  const char *greek_name(enum greek greek);
+ *	// Out-of-line version.
+ *	const char *greek_name(enum greek greek);
  *
- *  // Inline version.
- *  static inline const char *_greek_name(enum greek greek)
- *  {
- *    switch (greek) {
- *    case ALPHA: return "alpha";
- *    case BETA: return "beta";
- *    case GAMMA: return "gamma";
- *    case DELTA: return "delta";
- *    case EPSILON: return "epsilon";
- *    default: return "**INVALID**";
- *    }
- *  }
+ *	// Inline version.
+ *	static inline const char *_greek_name(enum greek greek)
+ *	{
+ *		switch (greek) {
+ *		case ALPHA: return "alpha";
+ *		case BETA: return "beta";
+ *		case GAMMA: return "gamma";
+ *		case DELTA: return "delta";
+ *		case EPSILON: return "epsilon";
+ *		default: return "**INVALID**";
+ *		}
+ *	}
  *
- *  // Use inline if compiler knows answer.  Otherwise call function
- *  // to avoid copies of the same code everywhere.
- *  #define greek_name(g)            \
- *     (IS_COMPILE_CONSTANT(greek) ? _greek_name(g) : greek_name(g))
+ *	// Use inline if compiler knows answer.  Otherwise call function
+ *	// to avoid copies of the same code everywhere.
+ *	#define greek_name(g)						\
+ *		 (IS_COMPILE_CONSTANT(greek) ? _greek_name(g) : greek_name(g))
  */
 #define IS_COMPILE_CONSTANT(expr) __builtin_constant_p(expr)
 #else
@@ -205,7 +205,7 @@
  * // buf param may be freed by this; need return value!
  * static char *WARN_UNUSED_RESULT enlarge(char *buf, unsigned *size)
  * {
- *  return realloc(buf, (*size) *= 2);
+ *	return realloc(buf, (*size) *= 2);
  * }
  */
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))

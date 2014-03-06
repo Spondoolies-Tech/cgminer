@@ -29,19 +29,19 @@
 #endif
 
 // Handle synchronous completion through the overlapped structure
-#if !defined(STATUS_REPARSE)  // reuse the REPARSE status code
+#if !defined(STATUS_REPARSE)	// reuse the REPARSE status code
 #define STATUS_REPARSE ((LONG)0x00000104L)
 #endif
-#define STATUS_COMPLETED_SYNCHRONOUSLY  STATUS_REPARSE
-#define HasOverlappedIoCompletedSync(lpOverlapped)  (((DWORD)(lpOverlapped)->Internal) == STATUS_COMPLETED_SYNCHRONOUSLY)
+#define STATUS_COMPLETED_SYNCHRONOUSLY	STATUS_REPARSE
+#define HasOverlappedIoCompletedSync(lpOverlapped)	(((DWORD)(lpOverlapped)->Internal) == STATUS_COMPLETED_SYNCHRONOUSLY)
 
 #define DUMMY_HANDLE ((HANDLE)(LONG_PTR)-2)
 
 enum windows_version {
-  WINDOWS_UNSUPPORTED,
-  WINDOWS_XP,
-  WINDOWS_2003,  // also includes XP 64
-  WINDOWS_VISTA_AND_LATER,
+	WINDOWS_UNSUPPORTED,
+	WINDOWS_XP,
+	WINDOWS_2003,	// also includes XP 64
+	WINDOWS_VISTA_AND_LATER,
 };
 extern enum windows_version windows_version;
 
@@ -62,17 +62,17 @@ struct pollfd {
 
 // access modes
 enum rw_type {
-  RW_NONE,
-  RW_READ,
-  RW_WRITE,
+	RW_NONE,
+	RW_READ,
+	RW_WRITE,
 };
 
 // fd struct that can be used for polling on Windows
 struct winfd {
-  int fd;              // what's exposed to libusb core
-  HANDLE handle;          // what we need to attach overlapped to the I/O op, so we can poll it
-  OVERLAPPED* overlapped;      // what will report our I/O status
-  enum rw_type rw;        // I/O transfer direction: read *XOR* write (NOT BOTH)
+	int fd;							// what's exposed to libusb core
+	HANDLE handle;					// what we need to attach overlapped to the I/O op, so we can poll it
+	OVERLAPPED* overlapped;			// what will report our I/O status
+	enum rw_type rw;				// I/O transfer direction: read *XOR* write (NOT BOTH)
 };
 extern const struct winfd INVALID_WINFD;
 
@@ -94,24 +94,24 @@ struct winfd overlapped_to_winfd(OVERLAPPED* overlapped);
  * Timeval operations
  */
 #if defined(DDKBUILD)
-#include <winsock.h>  // defines timeval functions on DDK
+#include <winsock.h>	// defines timeval functions on DDK
 #endif
 
 #if !defined(TIMESPEC_TO_TIMEVAL)
 #define TIMESPEC_TO_TIMEVAL(tv, ts) {                   \
-  (tv)->tv_sec = (long)(ts)->tv_sec;                  \
-  (tv)->tv_usec = (long)(ts)->tv_nsec / 1000;         \
+	(tv)->tv_sec = (long)(ts)->tv_sec;                  \
+	(tv)->tv_usec = (long)(ts)->tv_nsec / 1000;         \
 }
 #endif
 #if !defined(timersub)
 #define timersub(a, b, result)                          \
 do {                                                    \
-  (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;       \
-  (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;    \
-  if ((result)->tv_usec < 0) {                        \
-    --(result)->tv_sec;                             \
-    (result)->tv_usec += 1000000;                   \
-  }                                                   \
+	(result)->tv_sec = (a)->tv_sec - (b)->tv_sec;       \
+	(result)->tv_usec = (a)->tv_usec - (b)->tv_usec;    \
+	if ((result)->tv_usec < 0) {                        \
+		--(result)->tv_sec;                             \
+		(result)->tv_usec += 1000000;                   \
+	}                                                   \
 } while (0)
 #endif
 

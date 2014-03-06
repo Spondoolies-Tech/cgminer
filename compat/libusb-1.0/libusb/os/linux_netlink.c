@@ -51,181 +51,181 @@ struct sockaddr_nl snl = { .nl_family=AF_NETLINK, .nl_groups=KERNEL };
 
 int linux_netlink_start_event_monitor(void)
 {
-  int ret;
+	int ret;
 
-  snl.nl_groups = KERNEL;
+	snl.nl_groups = KERNEL;
 
-  linux_netlink_socket = socket(PF_NETLINK, SOCK_RAW|SOCK_CLOEXEC|SOCK_NONBLOCK, NETLINK_KOBJECT_UEVENT);
-  if (-1 == linux_netlink_socket) {
-    return LIBUSB_ERROR_OTHER;
-  }
+	linux_netlink_socket = socket(PF_NETLINK, SOCK_RAW|SOCK_CLOEXEC|SOCK_NONBLOCK, NETLINK_KOBJECT_UEVENT);
+	if (-1 == linux_netlink_socket) {
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  ret = bind(linux_netlink_socket, (struct sockaddr *) &snl, sizeof(snl));
-  if (0 != ret) {
-    return LIBUSB_ERROR_OTHER;
-  }
+	ret = bind(linux_netlink_socket, (struct sockaddr *) &snl, sizeof(snl));
+	if (0 != ret) {
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  /* TODO -- add authentication */
-  /* setsockopt(linux_netlink_socket, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)); */
+	/* TODO -- add authentication */
+	/* setsockopt(linux_netlink_socket, SOL_SOCKET, SO_PASSCRED, &one, sizeof(one)); */
 
-  ret = pthread_create(&libusb_linux_event_thread, NULL, linux_netlink_event_thread_main, NULL);
-  if (0 != ret) {
-    return LIBUSB_ERROR_OTHER;
-  }
+	ret = pthread_create(&libusb_linux_event_thread, NULL, linux_netlink_event_thread_main, NULL);
+	if (0 != ret) {
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  return LIBUSB_SUCCESS;
+	return LIBUSB_SUCCESS;
 }
 
 int linux_netlink_stop_event_monitor(void)
 {
-  int r;
+	int r;
 
-  if (-1 == linux_netlink_socket) {
-    /* already closed. nothing to do */
-    return LIBUSB_SUCCESS;
-  }
+	if (-1 == linux_netlink_socket) {
+		/* already closed. nothing to do */
+		return LIBUSB_SUCCESS;
+	}
 
-  r = close(linux_netlink_socket);
-  if (0 > r) {
-    usbi_err(NULL, "error closing netlink socket. %s", strerror(errno));
-    return LIBUSB_ERROR_OTHER;
-  }
+	r = close(linux_netlink_socket);
+	if (0 > r) {
+		usbi_err(NULL, "error closing netlink socket. %s", strerror(errno));
+		return LIBUSB_ERROR_OTHER;
+	}
 
-  pthread_cancel(libusb_linux_event_thread);
+	pthread_cancel(libusb_linux_event_thread);
 
-  linux_netlink_socket = -1;
+	linux_netlink_socket = -1;
 
-  return LIBUSB_SUCCESS;
+	return LIBUSB_SUCCESS;
 }
 
 static const char *netlink_message_parse (const char *buffer, size_t len, const char *key)
 {
-  size_t keylen = strlen(key);
-  size_t offset;
+	size_t keylen = strlen(key);
+	size_t offset;
 
-  for (offset = 0 ; offset < len && '\0' != buffer[offset] ; offset += strlen(buffer + offset) + 1) {
-    if (0 == strncmp(buffer + offset, key, keylen) &&
-        '=' == buffer[offset + keylen]) {
-      return buffer + offset + keylen + 1;
-    }
-  }
+	for (offset = 0 ; offset < len && '\0' != buffer[offset] ; offset += strlen(buffer + offset) + 1) {
+		if (0 == strncmp(buffer + offset, key, keylen) &&
+		    '=' == buffer[offset + keylen]) {
+			return buffer + offset + keylen + 1;
+		}
+	}
 
-  return NULL;
+	return NULL;
 }
 
 /* parse parts of netlink message common to both libudev and the kernel */
 static int linux_netlink_parse(char *buffer, size_t len, int *detached, const char **sys_name,
-             uint8_t *busnum, uint8_t *devaddr) {
-  const char *tmp;
-  int i;
+			       uint8_t *busnum, uint8_t *devaddr) {
+	const char *tmp;
+	int i;
 
-  errno = 0;
+	errno = 0;
 
-  *sys_name = NULL;
-  *detached = 0;
-  *busnum   = 0;
-  *devaddr  = 0;
+	*sys_name = NULL;
+	*detached = 0;
+	*busnum   = 0;
+	*devaddr  = 0;
 
-  tmp = netlink_message_parse((const char *) buffer, len, "ACTION");
-  if (0 == strcmp(tmp, "remove")) {
-    *detached = 1;
-  } else if (0 != strcmp(tmp, "add")) {
-    usbi_dbg("unknown device action");
-    return -1;
-  }
+	tmp = netlink_message_parse((const char *) buffer, len, "ACTION");
+	if (0 == strcmp(tmp, "remove")) {
+		*detached = 1;
+	} else if (0 != strcmp(tmp, "add")) {
+		usbi_dbg("unknown device action");
+		return -1;
+	}
 
-  /* check that this is a usb message */
-  tmp = netlink_message_parse(buffer, len, "SUBSYSTEM");
-  if (NULL == tmp || 0 != strcmp(tmp, "usb")) {
-    /* not usb. ignore */
-    return -1;
-  }
+	/* check that this is a usb message */
+	tmp = netlink_message_parse(buffer, len, "SUBSYSTEM");
+	if (NULL == tmp || 0 != strcmp(tmp, "usb")) {
+		/* not usb. ignore */
+		return -1;
+	}
 
-  tmp = netlink_message_parse(buffer, len, "BUSNUM");
-  if (NULL == tmp) {
-    /* no bus number (likely a usb interface). ignore*/
-    return -1;
-  }
+	tmp = netlink_message_parse(buffer, len, "BUSNUM");
+	if (NULL == tmp) {
+		/* no bus number (likely a usb interface). ignore*/
+		return -1;
+	}
 
-  *busnum = (uint8_t)(strtoul(tmp, NULL, 10) & 0xff);
-  if (errno) {
-    errno = 0;
-    return -1;
-  }
+	*busnum = (uint8_t)(strtoul(tmp, NULL, 10) & 0xff);
+	if (errno) {
+		errno = 0;
+		return -1;
+	}
 
-  tmp = netlink_message_parse(buffer, len, "DEVNUM");
-  if (NULL == tmp) {
-    return -1;
-  }
+	tmp = netlink_message_parse(buffer, len, "DEVNUM");
+	if (NULL == tmp) {
+		return -1;
+	}
 
-  *devaddr = (uint8_t)(strtoul(tmp, NULL, 10) & 0xff);
-  if (errno) {
-    errno = 0;
-    return -1;
-  }
+	*devaddr = (uint8_t)(strtoul(tmp, NULL, 10) & 0xff);
+	if (errno) {
+		errno = 0;
+		return -1;
+	}
 
-  tmp = netlink_message_parse(buffer, len, "DEVPATH");
-  if (NULL == tmp) {
-    return -1;
-  }
+	tmp = netlink_message_parse(buffer, len, "DEVPATH");
+	if (NULL == tmp) {
+		return -1;
+	}
 
-  for (i = strlen(tmp) - 1 ; i ; --i) {
-    if ('/' ==tmp[i]) {
-      *sys_name = tmp + i + 1;
-      break;
-    }
-  }
+	for (i = strlen(tmp) - 1 ; i ; --i) {
+		if ('/' ==tmp[i]) {
+			*sys_name = tmp + i + 1;
+			break;
+		}
+	}
 
-  /* found a usb device */
-  return 0;
+	/* found a usb device */
+	return 0;
 }
 
 static void *linux_netlink_event_thread_main(void *arg)
 {
-  struct pollfd fds = {.fd = linux_netlink_socket,
-           .events = POLLIN};
-  unsigned char buffer[1024];
-  struct iovec iov = {.iov_base = buffer, .iov_len = sizeof(buffer)};
-  struct msghdr meh = { .msg_iov=&iov, .msg_iovlen=1,
-           .msg_name=&snl, .msg_namelen=sizeof(snl) };
-  uint8_t busnum, devaddr;
-  int detached, r;
-  size_t len;
+	struct pollfd fds = {.fd = linux_netlink_socket,
+			     .events = POLLIN};
+	unsigned char buffer[1024];
+	struct iovec iov = {.iov_base = buffer, .iov_len = sizeof(buffer)};
+	struct msghdr meh = { .msg_iov=&iov, .msg_iovlen=1,
+			     .msg_name=&snl, .msg_namelen=sizeof(snl) };
+	uint8_t busnum, devaddr;
+	int detached, r;
+	size_t len;
 
-  /* silence compiler warning */
-  (void) arg;
+	/* silence compiler warning */
+	(void) arg;
 
-  while (1 == poll(&fds, 1, -1)) {
-    const char *sys_name = NULL;
+	while (1 == poll(&fds, 1, -1)) {
+		const char *sys_name = NULL;
 
-    if (POLLIN != fds.revents) {
-      break;
-    }
+		if (POLLIN != fds.revents) {
+			break;
+		}
 
-    /* read netlink message */
-    memset(buffer, 0, sizeof(buffer));
-    len = recvmsg(linux_netlink_socket, &meh, 0);
-    if (len < 32) {
-      usbi_dbg("error recieving message from netlink");
-      continue;
-    }
+		/* read netlink message */
+		memset(buffer, 0, sizeof(buffer));
+		len = recvmsg(linux_netlink_socket, &meh, 0);
+		if (len < 32) {
+			usbi_dbg("error recieving message from netlink");
+			continue;
+		}
 
-    /* TODO -- authenticate this message is from the kernel or udevd */
+		/* TODO -- authenticate this message is from the kernel or udevd */
 
-    r = linux_netlink_parse(buffer, len, &detached, &sys_name,
-          &busnum, &devaddr);
-    if (r)
-      continue;
+		r = linux_netlink_parse(buffer, len, &detached, &sys_name,
+					&busnum, &devaddr);
+		if (r)
+			continue;
 
-    usbi_dbg("netlink hotplug found device busnum: %hhu, devaddr: %hhu, sys_name: %s, removed: %s",
-       busnum, devaddr, sys_name, detached ? "yes" : "no");
+		usbi_dbg("netlink hotplug found device busnum: %hhu, devaddr: %hhu, sys_name: %s, removed: %s",
+			 busnum, devaddr, sys_name, detached ? "yes" : "no");
 
-    /* signal device is available (or not) to all contexts */
-    if (detached)
-      linux_hotplug_disconnected(busnum, devaddr, sys_name);
-    else
-      linux_hotplug_enumerate(busnum, devaddr, sys_name);
-  }
+		/* signal device is available (or not) to all contexts */
+		if (detached)
+			linux_hotplug_disconnected(busnum, devaddr, sys_name);
+		else
+			linux_hotplug_enumerate(busnum, devaddr, sys_name);
+	}
 
-  return NULL;  
+	return NULL;	
 }

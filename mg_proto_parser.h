@@ -24,19 +24,19 @@
 
 
 typedef enum {
-  //MINERGATE_DATA_ID_CONNECT = 1,
-  MINERGATE_DATA_ID_DO_JOB_REQ = 2,
-  MINERGATE_DATA_ID_DO_JOB_RSP = 3, 
+	//MINERGATE_DATA_ID_CONNECT = 1,
+	MINERGATE_DATA_ID_DO_JOB_REQ = 2,
+	MINERGATE_DATA_ID_DO_JOB_RSP = 3, 
 
 } MINERGATE_DATA_ID;
 
 
 typedef struct {
-  uint32_t work_id_in_sw;
-  uint32_t difficulty;
-  uint32_t timestamp;
-  uint32_t mrkle_root;
-  uint32_t midstate[8];
+	uint32_t work_id_in_sw;
+	uint32_t difficulty;
+	uint32_t timestamp;
+	uint32_t mrkle_root;
+	uint32_t midstate[8];
     uint8_t leading_zeroes;
     uint8_t res1;
     uint8_t res2;
@@ -49,43 +49,43 @@ typedef struct {
 
 
 typedef struct {
-  uint32_t work_id_in_sw;
-  uint32_t mrkle_root;     // to validate
-  uint32_t winner_nonce;
+	uint32_t work_id_in_sw;
+	uint32_t mrkle_root;     // to validate
+	uint32_t winner_nonce;
     uint8_t  res;            // 0 = done, 1 = overflow, 2 = dropped bist
 } minergate_do_job_rsp;
 
 
 typedef struct {
-  uint8_t requester_id;
-  uint8_t request_id;
-  uint8_t protocol_version;
-  uint8_t connect; // = 1 on first request 
-  uint16_t magic; // 0xcafe
-  uint16_t req_count;
-  minergate_do_job_req req[MAX_REQUESTS]; // array of requests
+	uint8_t requester_id;
+	uint8_t request_id;
+	uint8_t protocol_version;
+	uint8_t connect; // = 1 on first request 
+	uint16_t magic; // 0xcafe
+	uint16_t req_count;
+	minergate_do_job_req req[MAX_REQUESTS]; // array of requests
 } minergate_req_packet;
 
 typedef struct {
-  uint8_t requester_id;
-  uint8_t request_id;
-  uint8_t protocol_version;
-  uint8_t resrved1; // == 
-  uint16_t magic; // 0xcafe
-  uint16_t rsp_count;
-  minergate_do_job_rsp rsp[MAX_RESPONDS]; // array of responce
+	uint8_t requester_id;
+	uint8_t request_id;
+	uint8_t protocol_version;
+	uint8_t resrved1; // == 
+	uint16_t magic; // 0xcafe
+	uint16_t rsp_count;
+	minergate_do_job_rsp rsp[MAX_RESPONDS]; // array of responce
 } minergate_rsp_packet;
 
 
 minergate_req_packet *allocate_minergate_packet_req(
-                      uint8_t requester_id, 
-                      uint8_t request_id) ;
+											uint8_t requester_id, 
+											uint8_t request_id) ;
 
 
 
 minergate_rsp_packet *allocate_minergate_packet_rsp(
-                      uint8_t requester_id, 
-                      uint8_t request_id);
+											uint8_t requester_id, 
+											uint8_t request_id);
 
 
 #endif

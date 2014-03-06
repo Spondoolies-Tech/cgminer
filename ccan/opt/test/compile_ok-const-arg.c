@@ -6,8 +6,8 @@
 
 int main(int argc, char *argv[])
 {
-  opt_register_noarg("-v", opt_version_and_exit,
-         (const char *)"1.2.3",
-         (const char *)"Print version");
-  return 0;
+	opt_register_noarg("-v", opt_version_and_exit,
+			   (const char *)"1.2.3",
+			   (const char *)"Print version");
+	return 0;
 }
