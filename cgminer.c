@@ -7073,7 +7073,7 @@ void hash_queued_work(struct thr_info *mythr)
 
 		fill_queue(mythr, cgpu, drv, thr_id);
 
-		hashes = drv->  (mythr);
+		hashes = drv->scanwork(mythr);
 
 		/* Reset the bool here in case the driver looks for it
 		 * synchronously in the scanwork loop. */
