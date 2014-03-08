@@ -18,13 +18,13 @@
 #define AVALON_RESET_FAULT_DECISECONDS 1
 #define AVALON_MINER_THREADS 1
 
-#define AVALON_IO_SPEED		115200
-#define AVALON_HASH_TIME_FACTOR	((float)1.67/0x32)
-#define AVALON_RESET_PITCH	(300*1000*1000)
+#define AVALON_IO_SPEED    115200
+#define AVALON_HASH_TIME_FACTOR  ((float)1.67/0x32)
+#define AVALON_RESET_PITCH  (300*1000*1000)
 
 
-#define AVALON_A3256	110
-#define AVALON_A3255	55
+#define AVALON_A3256  110
+#define AVALON_A3255  55
 
 #define AVALON_FAN_FACTOR 120
 #define AVALON_PWM_MAX 0xA0
@@ -73,100 +73,100 @@
 #define AVALON_LATENCY 4
 
 struct avalon_task {
-	uint8_t reset		:1;
-	uint8_t flush_fifo	:1;
-	uint8_t fan_eft		:1;
-	uint8_t timer_eft	:1;
-	uint8_t asic_num	:4;
-	uint8_t fan_pwm_data;
-	uint8_t timeout_data;
-	uint8_t miner_num;
+  uint8_t reset    :1;
+  uint8_t flush_fifo  :1;
+  uint8_t fan_eft    :1;
+  uint8_t timer_eft  :1;
+  uint8_t asic_num  :4;
+  uint8_t fan_pwm_data;
+  uint8_t timeout_data;
+  uint8_t miner_num;
 
-	uint8_t nonce_elf		:1;
-	uint8_t gate_miner_elf		:1;
-	uint8_t asic_pll		:1;
-	uint8_t gate_miner		:1;
-	uint8_t _pad0			:4;
-	uint8_t _pad1[3];
-	uint32_t _pad2;
+  uint8_t nonce_elf    :1;
+  uint8_t gate_miner_elf    :1;
+  uint8_t asic_pll    :1;
+  uint8_t gate_miner    :1;
+  uint8_t _pad0      :4;
+  uint8_t _pad1[3];
+  uint32_t _pad2;
 
-	uint8_t midstate[32];
-	uint8_t data[12];
+  uint8_t midstate[32];
+  uint8_t data[12];
 } __attribute__((packed, aligned(4)));
 
 struct avalon_result {
-	uint32_t nonce;
-	uint8_t data[12];
-	uint8_t midstate[32];
+  uint32_t nonce;
+  uint8_t data[12];
+  uint8_t midstate[32];
 
-	uint8_t fan0;
-	uint8_t fan1;
-	uint8_t fan2;
-	uint8_t temp0;
-	uint8_t temp1;
-	uint8_t temp2;
-	uint8_t _pad0[2];
+  uint8_t fan0;
+  uint8_t fan1;
+  uint8_t fan2;
+  uint8_t temp0;
+  uint8_t temp1;
+  uint8_t temp2;
+  uint8_t _pad0[2];
 
-	uint16_t fifo_wp;
-	uint16_t fifo_rp;
-	uint8_t chip_num;
-	uint8_t pwm_data;
-	uint8_t timeout;
-	uint8_t miner_num;
+  uint16_t fifo_wp;
+  uint16_t fifo_rp;
+  uint8_t chip_num;
+  uint8_t pwm_data;
+  uint8_t timeout;
+  uint8_t miner_num;
 } __attribute__((packed, aligned(4)));
 
 struct avalon_info {
-	int baud;
-	int miner_count;
-	int asic_count;
-	int timeout;
+  int baud;
+  int miner_count;
+  int asic_count;
+  int timeout;
 
-	int fan0;
-	int fan1;
-	int fan2;
+  int fan0;
+  int fan1;
+  int fan2;
 
-	int temp0;
-	int temp1;
-	int temp2;
-	int temp_history_count;
-	int temp_history_index;
-	int temp_sum;
-	int temp_old;
-	int fan_pwm;
+  int temp0;
+  int temp1;
+  int temp2;
+  int temp_history_count;
+  int temp_history_index;
+  int temp_sum;
+  int temp_old;
+  int fan_pwm;
 
-	int core_voltage;
+  int core_voltage;
 
-	int no_matching_work;
-	int matching_work[AVALON_MAX_MINER_NUM];
+  int no_matching_work;
+  int matching_work[AVALON_MAX_MINER_NUM];
 
-	int frequency;
-	uint32_t asic;
-	uint32_t ctlr_ver;
+  int frequency;
+  uint32_t asic;
+  uint32_t ctlr_ver;
 
-	struct thr_info *thr;
-	pthread_t read_thr;
-	pthread_t write_thr;
-	pthread_mutex_t lock;
-	pthread_mutex_t qlock;
-	cgsem_t qsem;
-	cgtimer_t cgsent;
-	int send_delay;
+  struct thr_info *thr;
+  pthread_t read_thr;
+  pthread_t write_thr;
+  pthread_mutex_t lock;
+  pthread_mutex_t qlock;
+  cgsem_t qsem;
+  cgtimer_t cgsent;
+  int send_delay;
 
-	int nonces;
-	int auto_queued;
-	int auto_nonces;
-	int auto_hw;
-	int increment;
-	int decrement;
+  int nonces;
+  int auto_queued;
+  int auto_nonces;
+  int auto_hw;
+  int increment;
+  int decrement;
 
-	int idle;
-	bool reset;
-	bool overheat;
-	bool optimal;
+  int idle;
+  bool reset;
+  bool overheat;
+  bool optimal;
 
-	uint8_t version1;
-	uint8_t version2;
-	uint8_t version3;
+  uint8_t version1;
+  uint8_t version2;
+  uint8_t version3;
 };
 
 #define BITBURNER_VERSION1 1
@@ -204,4 +204,4 @@ extern char *set_avalon_fan(char *arg);
 extern char *set_avalon_freq(char *arg);
 
 #endif /* USE_AVALON */
-#endif	/* AVALON_H */
+#endif  /* AVALON_H */

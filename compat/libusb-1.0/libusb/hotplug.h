@@ -28,37 +28,37 @@
  * to receive notification of hotplug events.
  */
 struct libusb_hotplug_callback {
-	/** Context this callback is associated with */
-	struct libusb_context *ctx;
+  /** Context this callback is associated with */
+  struct libusb_context *ctx;
 
-	/** Vendor ID to match or LIBUSB_HOTPLUG_MATCH_ANY */
-	int vendor_id;
+  /** Vendor ID to match or LIBUSB_HOTPLUG_MATCH_ANY */
+  int vendor_id;
 
-	/** Product ID to match or LIBUSB_HOTPLUG_MATCH_ANY */
-	int product_id;
+  /** Product ID to match or LIBUSB_HOTPLUG_MATCH_ANY */
+  int product_id;
 
-	/** Device class to match or LIBUSB_HOTPLUG_MATCH_ANY */
-	int dev_class;
+  /** Device class to match or LIBUSB_HOTPLUG_MATCH_ANY */
+  int dev_class;
 
-	/** Hotplug callback flags */
+  /** Hotplug callback flags */
         libusb_hotplug_flag flags;
 
-	/** Event(s) that will trigger this callback */
-	libusb_hotplug_event events;
+  /** Event(s) that will trigger this callback */
+  libusb_hotplug_event events;
 
-	/** Callback function to invoke for matching event/device */
-	libusb_hotplug_callback_fn cb;
+  /** Callback function to invoke for matching event/device */
+  libusb_hotplug_callback_fn cb;
 
         /** Handle for this callback (used to match on deregister) */
         libusb_hotplug_callback_handle handle;
 
-	/** User data that will be passed to the callback function */
-	void *user_data;
+  /** User data that will be passed to the callback function */
+  void *user_data;
 
         /** Callback is marked for deletion */
         int needs_free;
 
-	/** List this callback is registered in (ctx->hotplug_cbs) */
+  /** List this callback is registered in (ctx->hotplug_cbs) */
         struct list_head list;
 };
 

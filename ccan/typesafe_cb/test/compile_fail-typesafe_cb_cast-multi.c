@@ -2,23 +2,23 @@
 #include <stdlib.h>
 
 struct foo {
-	int x;
+  int x;
 };
 
 struct bar {
-	int x;
+  int x;
 };
 
 struct baz {
-	int x;
+  int x;
 };
 
 struct any {
-	int x;
+  int x;
 };
 
 struct other {
-	int x;
+  int x;
 };
 
 static void take_any(struct any *any)
@@ -28,16 +28,16 @@ static void take_any(struct any *any)
 int main(int argc, char *argv[])
 {
 #ifdef FAIL
-	struct other
+  struct other
 #if !HAVE_TYPEOF||!HAVE_BUILTIN_CHOOSE_EXPR||!HAVE_BUILTIN_TYPES_COMPATIBLE_P
 #error "Unfortunately we don't fail if typesafe_cb_cast is a noop."
 #endif
 #else
-	struct foo
+  struct foo
 #endif
-		*arg = NULL;
-	take_any(typesafe_cb_cast3(struct any *,
-				   struct foo *, struct bar *, struct baz *,
-				   arg));
-	return 0;
+    *arg = NULL;
+  take_any(typesafe_cb_cast3(struct any *,
+           struct foo *, struct bar *, struct baz *,
+           arg));
+  return 0;
 }

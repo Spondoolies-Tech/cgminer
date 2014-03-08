@@ -16,33 +16,33 @@
 #define KLIST_FFL_HERE __FILE__, __func__, __LINE__
 #define KLIST_FFL_PASS file, func, line
 #define KLIST_FFL_ARGS  __maybe_unused const char *file, \
-			__maybe_unused const char *func, \
-			__maybe_unused const int line
+      __maybe_unused const char *func, \
+      __maybe_unused const int line
 
 typedef struct k_item {
-	const char *name;
-	struct k_item *prev;
-	struct k_item *next;
-	void *data;
+  const char *name;
+  struct k_item *prev;
+  struct k_item *next;
+  void *data;
 } K_ITEM;
 
 typedef struct k_list {
-	const char *name;
-	bool is_store;
-	cglock_t *lock;
-	struct k_item *head;
-	struct k_item *tail;
-	size_t siz;		// item data size
-	int total;		// total allocated
-	int count;		// in this list
-	int count_up;		// incremented every time one is added
-	int allocate;		// number to intially allocate and each time we run out
-	int limit;		// total limit - 0 means unlimited
-	bool do_tail;		// track the tail?
-	int item_mem_count;	// how many item memory buffers have been allocated
-	void **item_memory;	// allocated item memory buffers
-	int data_mem_count;	// how many item data memory buffers have been allocated
-	void **data_memory;	// allocated item data memory buffers
+  const char *name;
+  bool is_store;
+  cglock_t *lock;
+  struct k_item *head;
+  struct k_item *tail;
+  size_t siz;    // item data size
+  int total;    // total allocated
+  int count;    // in this list
+  int count_up;    // incremented every time one is added
+  int allocate;    // number to intially allocate and each time we run out
+  int limit;    // total limit - 0 means unlimited
+  bool do_tail;    // track the tail?
+  int item_mem_count;  // how many item memory buffers have been allocated
+  void **item_memory;  // allocated item memory buffers
+  int data_mem_count;  // how many item data memory buffers have been allocated
+  void **data_memory;  // allocated item data memory buffers
 } K_LIST;
 
 /*

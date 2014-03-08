@@ -23,9 +23,9 @@
  * burst of results as we progress
  */
 enum driver_version {
-	BFLSC_DRVUNDEF = 0,
-	BFLSC_DRV1,
-	BFLSC_DRV2
+  BFLSC_DRVUNDEF = 0,
+  BFLSC_DRV1,
+  BFLSC_DRV2
 };
 
 /*
@@ -64,96 +64,96 @@ enum driver_version {
 #define FULLNONCE 0x100000000ULL
 
 struct bflsc_dev {
-	// Work
-	unsigned int ms_work;
-	int work_queued;
-	int work_complete;
-	int nonces_hw; // TODO: this - need to add a paramter to submit_nonce()
-			// so can pass 'dev' to hw_error
-	uint64_t hashes_unsent;
-	uint64_t hashes_sent;
-	uint64_t nonces_found;
+  // Work
+  unsigned int ms_work;
+  int work_queued;
+  int work_complete;
+  int nonces_hw; // TODO: this - need to add a paramter to submit_nonce()
+      // so can pass 'dev' to hw_error
+  uint64_t hashes_unsent;
+  uint64_t hashes_sent;
+  uint64_t nonces_found;
 
-	struct timeval last_check_result;
-	struct timeval last_dev_result; // array > 0
-	struct timeval last_nonce_result; // > 0 nonce
+  struct timeval last_check_result;
+  struct timeval last_dev_result; // array > 0
+  struct timeval last_nonce_result; // > 0 nonce
 
-	// Info
-	char getinfo[(BFLSC_BUFSIZ+4)*4];
-	char *firmware;
-	int engines; // each engine represents a 'thread' in a chip
-	char *xlink_mode;
-	char *xlink_present;
-	char *chips;
+  // Info
+  char getinfo[(BFLSC_BUFSIZ+4)*4];
+  char *firmware;
+  int engines; // each engine represents a 'thread' in a chip
+  char *xlink_mode;
+  char *xlink_present;
+  char *chips;
 
-	// Status
-	bool dead; // TODO: handle seperate x-link devices failing?
-	bool overheat;
+  // Status
+  bool dead; // TODO: handle seperate x-link devices failing?
+  bool overheat;
 
-	// Stats
-	float temp1;
-	float temp2;
-	float vcc1;
-	float vcc2;
-	float vmain;
-	float temp1_max;
-	float temp2_max;
-	time_t temp1_max_time;
-	time_t temp2_max_time;
-	float temp1_5min_av; // TODO:
-	float temp2_5min_av; // TODO:
+  // Stats
+  float temp1;
+  float temp2;
+  float vcc1;
+  float vcc2;
+  float vmain;
+  float temp1_max;
+  float temp2_max;
+  time_t temp1_max_time;
+  time_t temp2_max_time;
+  float temp1_5min_av; // TODO:
+  float temp2_5min_av; // TODO:
 
-	// To handle the fact that flushing the queue may not remove all work
-	// (normally one item is still being processed)
-	// and also that once the queue is flushed, results may still be in
-	// the output queue - but we don't want to process them at the time of doing an LP
-	// when result_id > flush_id+1, flushed work can be discarded since it
-	// is no longer in the device
-	uint64_t flush_id; // counter when results were last flushed
-	uint64_t result_id; // counter when results were last checked
-	bool flushed; // are any flushed?
+  // To handle the fact that flushing the queue may not remove all work
+  // (normally one item is still being processed)
+  // and also that once the queue is flushed, results may still be in
+  // the output queue - but we don't want to process them at the time of doing an LP
+  // when result_id > flush_id+1, flushed work can be discarded since it
+  // is no longer in the device
+  uint64_t flush_id; // counter when results were last flushed
+  uint64_t result_id; // counter when results were last checked
+  bool flushed; // are any flushed?
 };
 
 #define QUE_MAX_RESULTS 8
 
 struct bflsc_info {
-	enum driver_version driver_version;
-	pthread_rwlock_t stat_lock;
-	struct thr_info results_thr;
-	uint64_t hashes_sent;
-	uint32_t update_count;
-	struct timeval last_update;
-	int sc_count;
-	struct bflsc_dev *sc_devs;
-	unsigned int scan_sleep_time;
-	unsigned int results_sleep_time;
-	unsigned int default_ms_work;
-	bool shutdown;
-	bool flash_led;
-	bool not_first_work; // allow ignoring the first nonce error
-	bool fanauto;
-	int que_size;
-	int que_full_enough;
-	int que_watermark;
-	int que_low;
-	int que_noncecount;
-	int que_fld_min;
-	int que_fld_max;
-	int core_nonces[17];
-	int core_hw[17];
-	int flush_size;
-	// count of given size, [+2] is for any > QUE_MAX_RESULTS
-	uint64_t result_size[QUE_MAX_RESULTS+2];
+  enum driver_version driver_version;
+  pthread_rwlock_t stat_lock;
+  struct thr_info results_thr;
+  uint64_t hashes_sent;
+  uint32_t update_count;
+  struct timeval last_update;
+  int sc_count;
+  struct bflsc_dev *sc_devs;
+  unsigned int scan_sleep_time;
+  unsigned int results_sleep_time;
+  unsigned int default_ms_work;
+  bool shutdown;
+  bool flash_led;
+  bool not_first_work; // allow ignoring the first nonce error
+  bool fanauto;
+  int que_size;
+  int que_full_enough;
+  int que_watermark;
+  int que_low;
+  int que_noncecount;
+  int que_fld_min;
+  int que_fld_max;
+  int core_nonces[17];
+  int core_hw[17];
+  int flush_size;
+  // count of given size, [+2] is for any > QUE_MAX_RESULTS
+  uint64_t result_size[QUE_MAX_RESULTS+2];
 };
 
 #define BFLSC_XLINKHDR '@'
 #define BFLSC_MAXPAYLOAD 255
 
 struct DataForwardToChain {
-	uint8_t header;
-	uint8_t payloadSize;
-	uint8_t deviceAddress;
-	uint8_t payloadData[BFLSC_MAXPAYLOAD];
+  uint8_t header;
+  uint8_t payloadSize;
+  uint8_t deviceAddress;
+  uint8_t payloadData[BFLSC_MAXPAYLOAD];
 };
 
 #define DATAFORWARDSIZE(data) (1 + 1 + 1 + data.payloadSize)
@@ -165,10 +165,10 @@ struct DataForwardToChain {
 #define BFLSC_EOB 0xaa
 
 struct QueueJobStructure {
-	uint8_t payloadSize;
-	uint8_t midState[MIDSTATE_BYTES];
-	uint8_t blockData[MERKLE_BYTES];
-	uint8_t endOfBlock;
+  uint8_t payloadSize;
+  uint8_t midState[MIDSTATE_BYTES];
+  uint8_t blockData[MERKLE_BYTES];
+  uint8_t endOfBlock;
 };
 
 #define QUE_RES_LINES_MIN 3
@@ -191,17 +191,17 @@ struct QueueJobStructure {
 // requires a different jobs[N] for each job count
 // but really only need to handle 5 anyway
 struct QueueJobPackStructure {
-	uint8_t payloadSize;
-	uint8_t signature;
-	uint8_t jobsInArray;
-	struct QueueJobStructure jobs[5];
-	uint8_t endOfWrapper;
+  uint8_t payloadSize;
+  uint8_t signature;
+  uint8_t jobsInArray;
+  struct QueueJobStructure jobs[5];
+  uint8_t endOfWrapper;
 };
 
 // TODO: Implement in API and also in usb device selection
 struct SaveString {
-	uint8_t payloadSize;
-	uint8_t payloadData[BFLSC_MAXPAYLOAD];
+  uint8_t payloadSize;
+  uint8_t payloadData[BFLSC_MAXPAYLOAD];
 };
 
 // Commands (Single Stage)

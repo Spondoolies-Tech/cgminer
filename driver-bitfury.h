@@ -34,62 +34,62 @@ extern int opt_nf1_bits;
 #define BITFURY_REFRESH_DELAY 100
 
 struct bitfury_payload {
-	unsigned char midstate[32];
-	unsigned int junk[8];
-	unsigned m7;
-	unsigned ntime;
-	unsigned nbits;
-	unsigned nnonce;
+  unsigned char midstate[32];
+  unsigned int junk[8];
+  unsigned m7;
+  unsigned ntime;
+  unsigned nbits;
+  unsigned nnonce;
 };
 
 struct bitfury_info {
-	struct cgpu_info *base_cgpu;
-	struct thr_info *thr;
-	enum sub_ident ident;
-	int nonces;
-	int total_nonces;
-	double saved_nonces;
-	int cycles;
-	bool valid; /* Set on first valid data being found */
-	bool failing; /* Set when an attempted restart has been sent */
+  struct cgpu_info *base_cgpu;
+  struct thr_info *thr;
+  enum sub_ident ident;
+  int nonces;
+  int total_nonces;
+  double saved_nonces;
+  int cycles;
+  bool valid; /* Set on first valid data being found */
+  bool failing; /* Set when an attempted restart has been sent */
 
-	/* BF1 specific data */
-	uint8_t version;
-	char product[8];
-	uint32_t serial;
-	struct timeval tv_start;
+  /* BF1 specific data */
+  uint8_t version;
+  char product[8];
+  uint32_t serial;
+  struct timeval tv_start;
 
-	/* BXF specific data */
-	pthread_mutex_t lock;
-	pthread_t read_thr;
-	int last_decitemp;
-	int max_decitemp;
-	int temp_target;
-	int work_id; // Current work->subid
-	int no_matching_work;
-	int maxroll; // Last maxroll sent to device
-	int ver_major;
-	int ver_minor;
-	int hw_rev;
-	int chips;
-	uint8_t clocks; // There are two but we set them equal
-	int filtered_hw[2]; // Hardware errors we're told about but are filtered
-	int job[2]; // Completed jobs we're told about
-	int submits[2]; // Submitted responses
+  /* BXF specific data */
+  pthread_mutex_t lock;
+  pthread_t read_thr;
+  int last_decitemp;
+  int max_decitemp;
+  int temp_target;
+  int work_id; // Current work->subid
+  int no_matching_work;
+  int maxroll; // Last maxroll sent to device
+  int ver_major;
+  int ver_minor;
+  int hw_rev;
+  int chips;
+  uint8_t clocks; // There are two but we set them equal
+  int filtered_hw[2]; // Hardware errors we're told about but are filtered
+  int job[2]; // Completed jobs we're told about
+  int submits[2]; // Submitted responses
 
-	/* NF1 specific data */
-	struct mcp_settings mcp;
-	char spibuf[SPIBUF_SIZE];
-	unsigned int spibufsz;
-	int osc6_bits;
-	struct bitfury_payload payload;
-	struct bitfury_payload opayload;
-	unsigned newbuf[17];
-	unsigned oldbuf[17];
-	bool job_switched;
-	bool second_run;
-	struct work *work;
-	struct work *owork;
+  /* NF1 specific data */
+  struct mcp_settings mcp;
+  char spibuf[SPIBUF_SIZE];
+  unsigned int spibufsz;
+  int osc6_bits;
+  struct bitfury_payload payload;
+  struct bitfury_payload opayload;
+  unsigned newbuf[17];
+  unsigned oldbuf[17];
+  bool job_switched;
+  bool second_run;
+  struct work *work;
+  struct work *owork;
 };
 
 #endif /* BITFURY_H */

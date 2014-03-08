@@ -2,19 +2,19 @@
 #include <stdlib.h>
 
 struct foo {
-	int x;
+  int x;
 };
 
 struct bar {
-	int x;
+  int x;
 };
 
 struct baz {
-	int x;
+  int x;
 };
 
 struct any {
-	int x;
+  int x;
 };
 
 static void take_any(struct any *any)
@@ -23,19 +23,19 @@ static void take_any(struct any *any)
 
 int main(int argc, char *argv[])
 {
-	/* Otherwise we get unused warnings for these. */
-	struct foo *foo = NULL;
-	struct bar *bar = NULL;
-	struct baz *baz = NULL;
+  /* Otherwise we get unused warnings for these. */
+  struct foo *foo = NULL;
+  struct bar *bar = NULL;
+  struct baz *baz = NULL;
 
-	take_any(typesafe_cb_cast3(struct any *,
-				   struct foo *, struct bar *, struct baz *,
-				   foo));
-	take_any(typesafe_cb_cast3(struct any *, 
-				   struct foo *, struct bar *, struct baz *,
-				   bar));
-	take_any(typesafe_cb_cast3(struct any *, 
-				   struct foo *, struct bar *, struct baz *,
-				   baz));
-	return 0;
+  take_any(typesafe_cb_cast3(struct any *,
+           struct foo *, struct bar *, struct baz *,
+           foo));
+  take_any(typesafe_cb_cast3(struct any *, 
+           struct foo *, struct bar *, struct baz *,
+           bar));
+  take_any(typesafe_cb_cast3(struct any *, 
+           struct foo *, struct bar *, struct baz *,
+           baz));
+  return 0;
 }

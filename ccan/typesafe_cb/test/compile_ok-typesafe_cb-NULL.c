@@ -7,11 +7,11 @@ static void _register_callback(void (*cb)(const void *arg), const void *arg)
 {
 }
 
-#define register_callback(cb, arg)				\
-	_register_callback(typesafe_cb(void, const void *, (cb), (arg)), (arg))
+#define register_callback(cb, arg)        \
+  _register_callback(typesafe_cb(void, const void *, (cb), (arg)), (arg))
 
 int main(int argc, char *argv[])
 {
-	register_callback(NULL, "hello world");
-	return 0;
+  register_callback(NULL, "hello world");
+  return 0;
 }
