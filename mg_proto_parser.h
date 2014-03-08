@@ -70,7 +70,7 @@ typedef struct {
 	uint8_t requester_id;
 	uint8_t request_id;
 	uint8_t protocol_version;
-	uint8_t resrved1; // == 
+	uint8_t gh_done; // == 
 	uint16_t magic; // 0xcafe
 	uint16_t rsp_count;
 	minergate_do_job_rsp rsp[MAX_RESPONDS]; // array of responce

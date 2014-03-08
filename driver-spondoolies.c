@@ -239,7 +239,7 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter
           printf("%d + %d != %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver);
           print_stats(a);
         }
-        assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);
+        assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
        send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
        a->mp_next_req->connect = 0;
        a->mp_next_req->req_count = 0;
@@ -332,23 +332,20 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 
 // Return completed work to submit_nonce() and work_completed() 
 // struct timeval last_force_queue = {0};  
-
 static int64_t spond_scanhash(struct thr_info *thr)
 {
+    int64_t ghashes = 0;
     struct cgpu_info *cgpu = thr->cgpu;
     struct spond_adapter *a = cgpu->device_data;
-    //applog(LOG_DEBUG, "SPOND spond_scanhash %d", thr->id);
-      if(a->parse_resp) {
+    if(a->parse_resp) {
      mutex_lock(&a->lock);
-    //DBG(DBG_NET, "GOT minergate_do_job_req: %x/%x\n", sizeof(minergate_do_job_req), md->data_length);
+     ghashes+=a->mp_last_rsp->gh_done;
      int array_size = a->mp_last_rsp->rsp_count;
      int i;
      for (i = 0; i < array_size; i++) { // walk the jobs
        minergate_do_job_rsp* work = a->mp_last_rsp->rsp + i;
        int job_id =  work->work_id_in_sw;
-       
         if ((a->my_jobs[job_id].cgminer_work)) {
-          
           if (a->my_jobs[job_id].merkel_root == work->mrkle_root) {
               assert(a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY);
             a->works_in_minergate--;
@@ -375,8 +372,8 @@ static int64_t spond_scanhash(struct thr_info *thr)
           printf("Dropping minergate old job id:%d res:%d!\n",job_id, work->res);
         }
      }
-    mutex_unlock(&a->lock);
-        a->parse_resp = 0;
+     mutex_unlock(&a->lock);
+     a->parse_resp = 0;
     }
 
         
@@ -386,7 +383,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
 //    minergate_packet* mp_next_req = allocate_minergate_packet(10000, 0xca, 0xfe);
 
   
-  return 0;
+  return (ghashes)?ghashes*1000000000+500000000:0;
 }
 
 // Drop all current work
