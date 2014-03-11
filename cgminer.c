@@ -6569,34 +6569,21 @@ bool test_nonce_diff(struct work *work, uint32_t nonce, double diff)
 static void update_work_stats(struct thr_info *thr, struct work *work)
 {
 	double test_diff = current_diff;
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
-
 	work->share_diff = share_diff(work);
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
-
 	if (unlikely(work->share_diff >= test_diff)) {
-		
-		printf("%s, %d\n",__FUNCTION__, __LINE__);
 		work->block = true;
 		work->pool->solved++;
 		found_blocks++;
 		work->mandatory = true;
 		applog(LOG_NOTICE, "Found block for pool %d!", work->pool->pool_no);
 	}
-	printf("%s, %p, %p,%p, %d\n",__FUNCTION__, thr, work, work->pool , __LINE__);
 
 	mutex_lock(&stats_lock);
 	
-	printf("%s, %p %d\n",__FUNCTION__, work, __LINE__);
 	total_diff1 += work->device_diff;
 	
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	thr->cgpu->diff1 += work->device_diff;
-	
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	work->pool->diff1 += work->device_diff;
-	
-	printf("%s, %p, %d\n",__FUNCTION__, thr, __LINE__);
 	thr->cgpu->last_device_valid_work = time(NULL);
 	mutex_unlock(&stats_lock);
 }
@@ -6606,39 +6593,26 @@ static void update_work_stats(struct thr_info *thr, struct work *work)
 bool submit_tested_work(struct thr_info *thr, struct work *work)
 {
 	struct work *work_out;
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	update_work_stats(thr, work);
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
-
 	if (!fulltest(work->hash, work->target)) {
-		printf("%s, %d\n",__FUNCTION__, __LINE__);
 		applog(LOG_INFO, "%s %d: Share above target", thr->cgpu->drv->name,
 		       thr->cgpu->device_id);
 		return false;
 	}
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	work_out = copy_work(work);
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	submit_work_async(work_out);
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
 	return true;
 }
 
 /* Returns true if nonce for work was a valid share */
 bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
-
 	if (test_nonce(work, nonce)) {
-		printf("%s, %d\n",__FUNCTION__, __LINE__);
 		submit_tested_work(thr, work);
 	} else {
-		printf("%s, %d\n",__FUNCTION__, __LINE__);
 		inc_hw_errors(thr);
 		return false;
 	}
-	printf("%s, %d\n",__FUNCTION__, __LINE__);
-
 	if (opt_benchfile && opt_benchfile_display)
 		benchfile_dspwork(work, nonce);
 

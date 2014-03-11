@@ -233,11 +233,11 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter
     if (!a->parse_resp) {
       static int i =0;
       if (i++%10 == 0)
-        print_stats(a);
+        //print_stats(a);
         // TODO - send packet
         if (a->works_in_minergate + a->works_pending_tx != a->works_in_driver) {
           printf("%d + %d != %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver);
-          print_stats(a);
+          //print_stats(a);
         }
         assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
        send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
@@ -277,7 +277,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   // flush queue every REQUEST_PERIOD.
   if (usec >= REQUEST_PERIOD) {
     static int i =0; 
-    if (i++%20 == 0) print_stats(a);
+    //if (i++%20 == 0) print_stats(a);
     spondoolies_flush_queue(cgpu, a);
     last_force_queue = tv;
    }
@@ -353,8 +353,8 @@ static int64_t spond_scanhash(struct thr_info *thr)
             if (work->winner_nonce) {
              struct work *cg_work = a->my_jobs[job_id].cgminer_work;
              int r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
-             printf("Share status=%d nonce=%x jobid=%x \n", 
-               r, work->winner_nonce, a->my_jobs[job_id].job_id);
+             //printf("Share status=%d nonce=%x jobid=%x \n", 
+             //  r, work->winner_nonce, a->my_jobs[job_id].job_id);
              a->wins++;
             }
             work_completed(a->cgpu, a->my_jobs[job_id].cgminer_work);
