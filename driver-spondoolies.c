@@ -292,10 +292,11 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   // see if can take 1 more job.
   int next_job_id =  (a->current_job_id+1)%MAX_JOBS_IN_MINERGATE;
     if (a->my_jobs[next_job_id].cgminer_work) {
-    cgsleep_ms(20);
-    ret = true;
-    goto return_unlock;
+      cgsleep_ms(40);
+      ret = true;
+      goto return_unlock;
     }
+
 
   struct work *work;
   work = get_queued(cgpu);
@@ -309,16 +310,16 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   assert(work->thr);
   a->current_job_id = next_job_id;
   a->works_in_driver++;
-    // Get pointer for the request
-    minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];
+  // Get pointer for the request
+  minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];
 
-    work->subid = a->current_job_id;
-    a->my_jobs[a->current_job_id].cgminer_work = work;
-    a->my_jobs[a->current_job_id].state = SPONDWORK_STATE_IN_BUSY;
-    fill_minergate_request(pkt_job, work);
-     a->mp_next_req->req_count++;
-    a->my_jobs[a->current_job_id].merkel_root = pkt_job->mrkle_root;
-    a->works_pending_tx++;
+  work->subid = a->current_job_id;
+  a->my_jobs[a->current_job_id].cgminer_work = work;
+  a->my_jobs[a->current_job_id].state = SPONDWORK_STATE_IN_BUSY;
+  fill_minergate_request(pkt_job, work);
+  a->mp_next_req->req_count++;
+  a->my_jobs[a->current_job_id].merkel_root = pkt_job->mrkle_root;
+  a->works_pending_tx++;
    
 
  return_unlock:

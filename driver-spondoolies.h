@@ -22,7 +22,7 @@ typedef enum spond_work_state {
 //    SPONDWORK_STATE_COMPLETE,
 } SPONDWORK_STATE; 
 
-#define MAX_JOBS_IN_MINERGATE 0xFF
+#define MAX_JOBS_IN_MINERGATE MINERGATE_TOTAL_QUEUE // 1.5 sec worth of jobs
 
 typedef struct {
     struct work      *cgminer_work;
@@ -57,7 +57,7 @@ struct spond_adapter {
     int socket_fd;
 
   
-  int current_job_id; // 0 to 0xFF
+  int current_job_id; // 0 to 1000
   int parse_resp;
     minergate_req_packet* mp_next_req;
     minergate_rsp_packet* mp_last_rsp;
@@ -71,8 +71,8 @@ int spond_do_scaling(struct spond_adapter *a);
 
 extern void one_sec_spondoolies_watchdog(int uptime);
 
-#define REQUEST_PERIOD (80000)  //  times per second - in usec
-#define REQUEST_SIZE   80      //  jobs per request
+#define REQUEST_PERIOD (150000)  //  times per second - in usec
+#define REQUEST_SIZE   200      //  jobs per request
 
 
 

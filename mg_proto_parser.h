@@ -19,7 +19,7 @@
 
 
 
-#define MINERGATE_PROTOCOL_VERSION 1
+#define MINERGATE_PROTOCOL_VERSION 2
 #define MINERGATE_SOCKET_FILE "/tmp/connection_pipe"
 
 
@@ -43,9 +43,9 @@ typedef struct {
     uint8_t res3;        
 } minergate_do_job_req;
 
-#define MAX_REQUESTS 80
-#define MAX_RESPONDS 200
-#define MINERGATE_TOTAL_QUEUE 200
+#define MAX_REQUESTS 200
+#define MAX_RESPONDS 400
+#define MINERGATE_TOTAL_QUEUE 600
 
 
 typedef struct {
