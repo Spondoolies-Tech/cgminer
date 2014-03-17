@@ -71,7 +71,7 @@ int spond_do_scaling(struct spond_adapter *a);
 
 extern void one_sec_spondoolies_watchdog(int uptime);
 
-#define REQUEST_PERIOD (150000)  //  times per second - in usec
+#define REQUEST_PERIOD (230000)  //  times per second - in usec
 #define REQUEST_SIZE   200      //  jobs per request
 
 
