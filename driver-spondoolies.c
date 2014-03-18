@@ -335,7 +335,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 // struct timeval last_force_queue = {0};  
 static int64_t spond_scanhash(struct thr_info *thr)
 {
-    int64_t ghashes;
+    int64_t ghashes=0;
     struct cgpu_info *cgpu = thr->cgpu;
     struct spond_adapter *a = cgpu->device_data;
     if(a->parse_resp) {
