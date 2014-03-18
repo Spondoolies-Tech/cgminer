@@ -19,7 +19,7 @@
 
 
 
-#define MINERGATE_PROTOCOL_VERSION 2
+#define MINERGATE_PROTOCOL_VERSION 3
 #define MINERGATE_SOCKET_FILE "/tmp/connection_pipe"
 
 
@@ -70,7 +70,7 @@ typedef struct {
 	uint8_t requester_id;
 	uint8_t request_id;
 	uint8_t protocol_version;
-	uint8_t gh_done; // == 
+	uint8_t gh_div_10_rate; // == 
 	uint16_t magic; // 0xcafe
 	uint16_t rsp_count;
 	minergate_do_job_rsp rsp[MAX_RESPONDS]; // array of responce

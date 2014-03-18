@@ -335,12 +335,14 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 // struct timeval last_force_queue = {0};  
 static int64_t spond_scanhash(struct thr_info *thr)
 {
-    int64_t ghashes = 0;
+    int64_t ghashes;
     struct cgpu_info *cgpu = thr->cgpu;
     struct spond_adapter *a = cgpu->device_data;
     if(a->parse_resp) {
      mutex_lock(&a->lock);
-     ghashes+=a->mp_last_rsp->gh_done;
+     ghashes = (a->mp_last_rsp->gh_div_10_rate);
+     ghashes=ghashes*10000*REQUEST_PERIOD;
+     //printf("ghash=%llu\n",ghashes);
      int array_size = a->mp_last_rsp->rsp_count;
      int i;
      for (i = 0; i < array_size; i++) { // walk the jobs
@@ -383,14 +385,14 @@ static int64_t spond_scanhash(struct thr_info *thr)
 
 //    minergate_packet* mp_next_req = allocate_minergate_packet(10000, 0xca, 0xfe);
 
-  
-  return (ghashes)?ghashes*1000000000+500000000:0;
+
+  return (ghashes)?ghashes:0;
 }
 
 // Drop all current work
 void spond_dropwork(struct spond_adapter *a) {
     int job_id;
-    printf("---------------------------- DROP WORK!!!!!-----------------\n");
+    //printf("---------------------------- DROP WORK!!!!!-----------------\n");
     for (job_id=0; job_id<0x100;job_id++) {
         if ((a->my_jobs[job_id].cgminer_work) ||
            (a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY)) {                
@@ -407,7 +409,7 @@ void spond_dropwork(struct spond_adapter *a) {
 // Remove all work from queue
 static void spond_flush_work(struct cgpu_info *cgpu)
 {
-  printf("FLUSH!!!!!!!!!!!!!!\n");
+  //printf("FLUSH!!!!!!!!!!!!!!\n");
   struct spond_adapter *a = cgpu->device_data;
   int i;
   mutex_lock(&a->lock);
