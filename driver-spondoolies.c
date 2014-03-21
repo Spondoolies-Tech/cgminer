@@ -1,3 +1,21 @@
+/*
+ * Copyright 2014 Zvi (Zvisha) Shteingart - Spondoolies-tech.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
+
+
+/*
+  This driver communicates the job requests via Unix socket to the minergate 
+  process, that is responsible for controlling the Spondoolies Dawson SP10 miner.
+
+  The jobs sent each with unique ID and returned asynchronously in one of the next 
+  transactions. REQUEST_PERIOD and REQUEST_SIZE define the communication rate with minergate.
+*/
+
 
 #include <float.h>
 #include <limits.h>
@@ -66,7 +84,6 @@ void send_minergate_pkt(const minergate_req_packet* mp_req,
   if(nbytes <= 0) {
     _quit(-1);
   }
-  //printf("got %d(%d) bytes\n",mp_rsp->data_length, nbytes);
   passert(mp_rsp->magic == 0xcaf4);
 }
 
@@ -86,17 +103,7 @@ static bool spondoolies_prepare(struct thr_info *thr)
   return true;
 }
 
-void spond_print_stats(struct spond_adapter *a) {
-  int i;
-  printf("---------- ADAPTER STATS ------------\n");
-  printf("state %i\n",a->adapter_state);
-//  printf("job write %i, read %i, count %i\n",a->job_write_ptr,a->job_read_ptr, a->job_count);
-  for (i = 0; i < MAX_SPOND_JOBS; i++) {
-    //  printf("  job %i: %p\n", i, a->my_jobs[i]);
-  }  
-  printf("-------------------------------------\n");
 
-}
  
 int init_socket() {
   struct sockaddr_un address;
@@ -133,8 +140,6 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
   int success;
   struct spond_adapter *a;
   struct device_drv *drv = &spondoolies_drv;
-  applog(LOG_DEBUG, "SPOND spondoolies_detect");
-  applog(LOG_DEBUG, "USB scan devices: checking for %s devices", drv->name);
   
 #if NEED_FIX
   nDevs = 1;
@@ -160,7 +165,7 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
   pthread_mutex_init(&a->lock, NULL);
   a->socket_fd = init_socket();
   if (a->socket_fd < 1) {
-        printf("Error connecting to minergate server!");
+    printf("Error connecting to minergate server!");
     _quit(-1);
   }
 
@@ -233,11 +238,8 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter
     if (!a->parse_resp) {
       static int i =0;
       if (i++%10 == 0)
-        //print_stats(a);
-        // TODO - send packet
         if (a->works_in_minergate + a->works_pending_tx != a->works_in_driver) {
           printf("%d + %d != %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver);
-          //print_stats(a);
         }
         assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
        send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
@@ -252,10 +254,6 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter
 
 
 
-
-
-
-/* move jobs from  get_queued() to a->my_jobs() */
 // returns true if queue full.
 struct timeval last_force_queue = {0};   
 static bool spondoolies_queue_full(struct cgpu_info *cgpu)
@@ -274,17 +272,15 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
     usec=(tv.tv_sec-last_force_queue.tv_sec)*1000000;
     usec+=(tv.tv_usec-last_force_queue.tv_usec);
 
-  // flush queue every REQUEST_PERIOD.
-  if (usec >= REQUEST_PERIOD) {
-    static int i =0; 
-    //if (i++%20 == 0) print_stats(a);
-    spondoolies_flush_queue(cgpu, a);
-    last_force_queue = tv;
-   }
+    if (usec >= REQUEST_PERIOD) {
+      static int i =0; 
+      spondoolies_flush_queue(cgpu, a);
+      last_force_queue = tv;
+    }
 
   // see if we have enough jobs
   if (a->works_pending_tx == REQUEST_SIZE) {
-    cgsleep_ms(20);
+    cgsleep_ms(40);
     ret = true;
     goto return_unlock;
   }
@@ -323,9 +319,8 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
    
 
  return_unlock:
-    mutex_unlock(&a->lock);
-    return ret;
-//}
+  mutex_unlock(&a->lock);
+  return ret;
    
 }
 
@@ -342,7 +337,6 @@ static int64_t spond_scanhash(struct thr_info *thr)
      mutex_lock(&a->lock);
      ghashes = (a->mp_last_rsp->gh_div_10_rate);
      ghashes=ghashes*10000*REQUEST_PERIOD;
-     //printf("ghash=%llu\n",ghashes);
      int array_size = a->mp_last_rsp->rsp_count;
      int i;
      for (i = 0; i < array_size; i++) { // walk the jobs
@@ -356,8 +350,6 @@ static int64_t spond_scanhash(struct thr_info *thr)
             if (work->winner_nonce) {
              struct work *cg_work = a->my_jobs[job_id].cgminer_work;
              int r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
-             //printf("Share status=%d nonce=%x jobid=%x \n", 
-             //  r, work->winner_nonce, a->my_jobs[job_id].job_id);
              a->wins++;
             }
             work_completed(a->cgpu, a->my_jobs[job_id].cgminer_work);
@@ -378,21 +370,12 @@ static int64_t spond_scanhash(struct thr_info *thr)
      mutex_unlock(&a->lock);
      a->parse_resp = 0;
     }
-
-        
-    //printf("+");
-
-
-//    minergate_packet* mp_next_req = allocate_minergate_packet(10000, 0xca, 0xfe);
-
-
-  return (ghashes)?ghashes:0;
+  return ghashes;
 }
 
 // Drop all current work
 void spond_dropwork(struct spond_adapter *a) {
     int job_id;
-    //printf("---------------------------- DROP WORK!!!!!-----------------\n");
     for (job_id=0; job_id<0x100;job_id++) {
         if ((a->my_jobs[job_id].cgminer_work) ||
            (a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY)) {                
@@ -409,7 +392,6 @@ void spond_dropwork(struct spond_adapter *a) {
 // Remove all work from queue
 static void spond_flush_work(struct cgpu_info *cgpu)
 {
-  //printf("FLUSH!!!!!!!!!!!!!!\n");
   struct spond_adapter *a = cgpu->device_data;
   int i;
   mutex_lock(&a->lock);

@@ -1,3 +1,11 @@
+/*
+ * Copyright 2014 Zvi Shteingart - Spondoolies-tech.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3 of the License, or (at your option)
+ * any later version.  See COPYING for more details.
+ */
 
 #ifndef SPONDA_HFILE
 #define SPONDA_HFILE
@@ -7,7 +15,6 @@
 #include "mg_proto_parser.h"
 
 
-#define MAX_SPOND_JOBS 10
 
 typedef enum adapter_state {
   ADAPTER_STATE_INIT,
@@ -18,8 +25,7 @@ typedef enum adapter_state {
 
 typedef enum spond_work_state {
   SPONDWORK_STATE_EMPTY,
-    SPONDWORK_STATE_IN_BUSY,
-//    SPONDWORK_STATE_COMPLETE,
+  SPONDWORK_STATE_IN_BUSY,
 } SPONDWORK_STATE; 
 
 #define MAX_JOBS_IN_MINERGATE MINERGATE_TOTAL_QUEUE // 1.5 sec worth of jobs
@@ -34,11 +40,6 @@ typedef struct {
 
 struct spond_adapter {
   pthread_mutex_t lock;
-  // Lock the job queue
-  /*
-  pthread_mutex_t qlock;
-  pthread_cond_t qcond;
-*/
   ADAPTER_STATE adapter_state;
   void* cgpu;
   
@@ -57,11 +58,11 @@ struct spond_adapter {
     int socket_fd;
 
   
-  int current_job_id; // 0 to 1000
+  int current_job_id; 
   int parse_resp;
-    minergate_req_packet* mp_next_req;
-    minergate_rsp_packet* mp_last_rsp;
-    spond_driver_work my_jobs[MAX_JOBS_IN_MINERGATE]; 
+  minergate_req_packet* mp_next_req;
+  minergate_rsp_packet* mp_last_rsp;
+  spond_driver_work my_jobs[MAX_JOBS_IN_MINERGATE]; 
 };
 
 
