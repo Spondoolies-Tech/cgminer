@@ -230,6 +230,7 @@ void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work) {
   work->difficulty = ntohl(x[2]);
   work->leading_zeroes = get_leading_zeroes(cg_work->target);
   work->work_id_in_sw = cg_work->subid;
+  work->ntime_limit = cg_work->drv_rolllimit;
 }
 
 
@@ -349,7 +350,11 @@ static int64_t spond_scanhash(struct thr_info *thr)
             a->works_in_driver--;
             if (work->winner_nonce) {
              struct work *cg_work = a->my_jobs[job_id].cgminer_work;
-             int r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
+#ifndef SP_NTIME             
+             bool r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
+#else
+             bool r = submit_noffset_nonce(cg_work->thr, cg_work, work->winner_nonce, work->ntime_offset);
+#endif
              a->wins++;
             }
             work_completed(a->cgpu, a->my_jobs[job_id].cgminer_work);

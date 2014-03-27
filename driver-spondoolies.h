@@ -14,7 +14,7 @@
 #include "miner.h"
 #include "mg_proto_parser.h"
 
-
+#define SP_NTIME
 
 typedef enum adapter_state {
   ADAPTER_STATE_INIT,
