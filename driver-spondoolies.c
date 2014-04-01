@@ -214,7 +214,7 @@ static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
 {
 }
 
-void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work) {
+void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work, int ntime_offset) {
   static int id = 1;
   id++;
   memset(work, 0, sizeof(minergate_do_job_req));
@@ -230,19 +230,20 @@ void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work) {
   work->difficulty = ntohl(x[2]);
   work->leading_zeroes = get_leading_zeroes(cg_work->target);
   work->work_id_in_sw = cg_work->subid;
-  work->ntime_limit = cg_work->drv_rolllimit;
+  work->ntime_limit = 0;
+  work->ntime_offset = ntime_offset;  
 }
 
 
 static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter* a)
 {
     if (!a->parse_resp) {
-      static int i =0;
+      static int i = 0;
       if (i++%10 == 0)
         if (a->works_in_minergate + a->works_pending_tx != a->works_in_driver) {
           printf("%d + %d != %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver);
         }
-        assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
+       assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
        send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
        a->mp_next_req->connect = 0;
        a->mp_next_req->req_count = 0;
@@ -275,12 +276,13 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 
     if (usec >= REQUEST_PERIOD) {
       static int i =0; 
+//      printf("Sending packet of size %d\n", a->works_pending_tx);      
       spondoolies_flush_queue(cgpu, a);
       last_force_queue = tv;
     }
 
   // see if we have enough jobs
-  if (a->works_pending_tx == REQUEST_SIZE) {
+  if (a->works_pending_tx >= REQUEST_SIZE) {
     cgsleep_ms(40);
     ret = true;
     goto return_unlock;
@@ -305,20 +307,29 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   work->thr = cgpu->thr[0];  
   work->thr_id = cgpu->thr[0]->id;
   assert(work->thr);
-  a->current_job_id = next_job_id;
-  a->works_in_driver++;
-  // Get pointer for the request
-  minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];
+  int i;
 
+  // Create 5 works using ntime increment
+  a->current_job_id = next_job_id;
   work->subid = a->current_job_id;
+  // Get pointer for the request
   a->my_jobs[a->current_job_id].cgminer_work = work;
   a->my_jobs[a->current_job_id].state = SPONDWORK_STATE_IN_BUSY;
-  fill_minergate_request(pkt_job, work);
-  a->mp_next_req->req_count++;
-  a->my_jobs[a->current_job_id].merkel_root = pkt_job->mrkle_root;
-  a->works_pending_tx++;
-   
+  a->my_jobs[a->current_job_id].ntime_clones = 0;
+  //printf("Start with %d\n", a->current_job_id);
 
+  int ntime_clones = (work->drv_rolllimit < MAX_NROLES)?work->drv_rolllimit:MAX_NROLES;
+  for (i = 0 ; i < ntime_clones ; i++) {
+    minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];    
+    fill_minergate_request(pkt_job, work, i);
+    a->works_in_driver++;
+    a->works_pending_tx++;        
+    a->mp_next_req->req_count++;    
+    a->my_jobs[a->current_job_id].merkel_root = pkt_job->mrkle_root;  
+    a->my_jobs[a->current_job_id].ntime_clones++;
+  }
+  
+  
  return_unlock:
   mutex_unlock(&a->lock);
   return ret;
@@ -335,46 +346,50 @@ static int64_t spond_scanhash(struct thr_info *thr)
     struct cgpu_info *cgpu = thr->cgpu;
     struct spond_adapter *a = cgpu->device_data;
     if(a->parse_resp) {
-     mutex_lock(&a->lock);
-     ghashes = (a->mp_last_rsp->gh_div_10_rate);
-     ghashes=ghashes*10000*REQUEST_PERIOD;
-     int array_size = a->mp_last_rsp->rsp_count;
-     int i;
-     for (i = 0; i < array_size; i++) { // walk the jobs
-       minergate_do_job_rsp* work = a->mp_last_rsp->rsp + i;
-       int job_id =  work->work_id_in_sw;
+      mutex_lock(&a->lock);
+      ghashes = (a->mp_last_rsp->gh_div_10_rate);
+      ghashes=ghashes*10000*REQUEST_PERIOD;
+      int array_size = a->mp_last_rsp->rsp_count;
+      int i;
+      for (i = 0; i < array_size; i++) { // walk the jobs
+        minergate_do_job_rsp* work = a->mp_last_rsp->rsp + i;
+        int job_id =  work->work_id_in_sw;
         if ((a->my_jobs[job_id].cgminer_work)) {
           if (a->my_jobs[job_id].merkel_root == work->mrkle_root) {
-              assert(a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY);
+            assert(a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY);
             a->works_in_minergate--;
             a->works_in_driver--;
             if (work->winner_nonce) {
-             struct work *cg_work = a->my_jobs[job_id].cgminer_work;
+              struct work *cg_work = a->my_jobs[job_id].cgminer_work;
 #ifndef SP_NTIME             
-             bool r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
+              bool r = submit_nonce(cg_work->thr, cg_work, work->winner_nonce);
 #else
-             bool r = submit_noffset_nonce(cg_work->thr, cg_work, work->winner_nonce, work->ntime_offset);
+              bool r = submit_noffset_nonce(cg_work->thr, cg_work, work->winner_nonce, work->ntime_offset);
 #endif
-             a->wins++;
+              a->wins++;
             }
-            work_completed(a->cgpu, a->my_jobs[job_id].cgminer_work);
-            a->good++;              
+            //printf("%d ntime_clones = %d\n",job_id,a->my_jobs[job_id].ntime_clones);
+            if ((--a->my_jobs[job_id].ntime_clones) == 0) {
+              //printf("Done with %d\n", job_id);
+              work_completed(a->cgpu, a->my_jobs[job_id].cgminer_work);
+              a->good++;              
               a->my_jobs[job_id].cgminer_work = NULL;
               a->my_jobs[job_id].state = SPONDWORK_STATE_EMPTY;  
+            }
           } else {
-              a->bad++;
-              printf("Dropping minergate old job id=%d mrkl=%x my-mrkl=%x\n",job_id,
+            a->bad++;
+            printf("Dropping minergate old job id=%d mrkl=%x my-mrkl=%x\n",job_id,
               a->my_jobs[job_id].merkel_root, 
               work->mrkle_root);  
           }
         } else {
           a->empty++;
-          printf("Dropping minergate old job id:%d res:%d!\n",job_id, work->res);
+          printf("No cgminer job (id:%d res:%d)!\n",job_id, work->res);
         }
-     }
-     mutex_unlock(&a->lock);
-     a->parse_resp = 0;
-    }
+      }
+    mutex_unlock(&a->lock);
+    a->parse_resp = 0;
+  }
   return ghashes;
 }
 
