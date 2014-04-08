@@ -31,6 +31,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
 
 #include "config.h"
 
@@ -141,10 +142,10 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu,
     if (!a->parse_resp) {
       static int i = 0;
       if (i++%10 == 0)
-        if (a->works_in_minergate + a->works_pending_tx != a->works_in_driver) {
-          printf("%d + %d != %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver);
+        if (a->works_in_minergate_and_pending_tx + a->works_pending_tx != a->works_in_driver) {
+          printf("%d + %d != %d\n",a->works_in_minergate_and_pending_tx,a->works_pending_tx,a->works_in_driver);
         }
-       assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
+       assert(a->works_in_minergate_and_pending_tx + a->works_pending_tx == a->works_in_driver);   
        send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
        if (a->reset_mg_queue) {
          a->mp_next_req->mask |= 0x02;
@@ -155,7 +156,7 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu,
        
        a->mp_next_req->req_count = 0;
        a->parse_resp = 1;
-       a->works_in_minergate += a->works_pending_tx;
+       a->works_in_minergate_and_pending_tx += a->works_pending_tx;
        a->works_pending_tx = 0;
     }
     return true;
@@ -373,7 +374,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
         if ((a->my_jobs[job_id].cgminer_work)) {
           if (a->my_jobs[job_id].merkel_root == work->mrkle_root) {
             assert(a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY);
-            a->works_in_minergate--;
+            a->works_in_minergate_and_pending_tx--;
             a->works_in_driver--;
             if (work->winner_nonce) {
               struct work *cg_work = a->my_jobs[job_id].cgminer_work;
@@ -418,7 +419,7 @@ void spond_dropwork(struct spond_adapter *a) {
     for (job_id=0; job_id<0x100;job_id++) {
         if ((a->my_jobs[job_id].cgminer_work) ||
            (a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY)) {                
-                a->works_in_minergate--;
+                a->works_in_minergate_and_pending_tx--;
                 a->works_in_driver--;
                 work_completed(a->cgpu, a->my_jobs[job_id].cgminer_work);
               a->my_jobs[job_id].cgminer_work = NULL;

@@ -52,12 +52,9 @@ struct spond_adapter {
   int overflow;
   // state 
   int works_in_driver;
-  int works_in_minergate;
+  int works_in_minergate_and_pending_tx;
   int works_pending_tx;
-    
-
-    int socket_fd;
-
+  int socket_fd;
   int reset_mg_queue;
   int current_job_id; 
   int parse_resp;
