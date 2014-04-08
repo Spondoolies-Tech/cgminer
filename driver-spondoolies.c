@@ -135,6 +135,33 @@ int init_socket() {
 }
 
 
+static bool spondoolies_flush_queue(struct cgpu_info *cgpu, 
+                                    struct spond_adapter* a)
+{
+    if (!a->parse_resp) {
+      static int i = 0;
+      if (i++%10 == 0)
+        if (a->works_in_minergate + a->works_pending_tx != a->works_in_driver) {
+          printf("%d + %d != %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver);
+        }
+       assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
+       send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
+       if (a->reset_mg_queue) {
+         a->mp_next_req->mask |= 0x02;
+         a->reset_mg_queue = 0;         
+       } else {
+         a->mp_next_req->mask &= ~0x02;
+       }
+       
+       a->mp_next_req->req_count = 0;
+       a->parse_resp = 1;
+       a->works_in_minergate += a->works_pending_tx;
+       a->works_pending_tx = 0;
+    }
+    return true;
+}
+
+
 static void spondoolies_detect(__maybe_unused bool hotplug)
 {
   int success;
@@ -170,6 +197,13 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
   }
 
   assert(add_cgpu(cgpu));
+  // Clean MG socket
+  a->reset_mg_queue = 1;
+  spondoolies_flush_queue(cgpu, a);
+  a->reset_mg_queue = 1;
+  spondoolies_flush_queue(cgpu, a);
+  a->reset_mg_queue = 1;  
+  spondoolies_flush_queue(cgpu, a);
   applog(LOG_DEBUG, "SPOND spondoolies_detect done");
 }
 
@@ -184,14 +218,10 @@ static struct api_data *spondoolies_api_stats(struct cgpu_info *cgpu)
 }
 
 
-
-
-
 unsigned char get_leading_zeroes(const unsigned char *target) {
   unsigned char leading = 0;
   int first_non_zero_chr;
-  for (first_non_zero_chr = 31; first_non_zero_chr >= 0;
-      first_non_zero_chr--) {
+  for (first_non_zero_chr = 31; first_non_zero_chr >= 0; first_non_zero_chr--) {
     if (target[first_non_zero_chr] == 0) {
       leading += 8;
     } else { 
@@ -209,12 +239,14 @@ unsigned char get_leading_zeroes(const unsigned char *target) {
 }
 
 
-
 static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
 {
 }
 
-void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work, int ntime_offset) {
+void fill_minergate_request(struct spond_adapter* a,
+                            minergate_do_job_req* work, 
+                            struct work *cg_work, 
+                            int ntime_offset) {
   static int id = 1;
   id++;
   memset(work, 0, sizeof(minergate_do_job_req));
@@ -224,62 +256,49 @@ void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work, in
   uint32_t x[64/4];
   swap32yes(x, cg_work->data + 64, 64/4);
   memcpy(work->midstate, cg_work->midstate, 32);
-  // TODO - test
   work->mrkle_root = ntohl(x[0]);
   work->timestamp  = ntohl(x[1]);
   work->difficulty = ntohl(x[2]);
-  work->leading_zeroes = get_leading_zeroes(cg_work->target);
+  //work->leading_zeroes = get_leading_zeroes(cg_work->target);
+  // Is there no better way to get leading zeroes?
+  work->leading_zeroes = 30;
+  int wd = (int)round(cg_work->work_difficulty);
+  while (wd) {
+    work->leading_zeroes++;
+    wd=wd>>1;
+  }
+  //printf("%d %d\n",work->leading_zeroes, (int)round(cg_work->work_difficulty));
   work->work_id_in_sw = cg_work->subid;
   work->ntime_limit = 0;
-  work->ntime_offset = ntime_offset;  
-}
-
-
-static bool spondoolies_flush_queue(struct cgpu_info *cgpu, struct spond_adapter* a)
-{
-    if (!a->parse_resp) {
-      static int i = 0;
-      if (i++%10 == 0)
-        if (a->works_in_minergate + a->works_pending_tx != a->works_in_driver) {
-          printf("%d + %d != %d\n",a->works_in_minergate,a->works_pending_tx,a->works_in_driver);
-        }
-       assert(a->works_in_minergate + a->works_pending_tx == a->works_in_driver);   
-       send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
-       a->mp_next_req->connect = 0;
-       a->mp_next_req->req_count = 0;
-       a->parse_resp = 1;
-       a->works_in_minergate += a->works_pending_tx;
-       a->works_pending_tx = 0;
-    }
-    return true;
+  work->ntime_offset = ntime_offset;
 }
 
 
 
 // returns true if queue full.
-struct timeval last_force_queue = {0};   
+struct timeval last_force_queue = {0};
 static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 {
-    // Only once every 1/10 second do work.
-    struct spond_adapter* a = cgpu->device_data;
-    int ret = false;
-    bool queue_full = false; // queue not full
-    mutex_lock(&a->lock);
+  // Only once every 1/10 second do work.
+  struct spond_adapter* a = cgpu->device_data;
+  int ret = false;
+  bool queue_full = false; // queue not full
+  mutex_lock(&a->lock);
 
 
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    unsigned int usec;
-        
-    usec=(tv.tv_sec-last_force_queue.tv_sec)*1000000;
-    usec+=(tv.tv_usec-last_force_queue.tv_usec);
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  unsigned int usec;
+      
+  usec=(tv.tv_sec-last_force_queue.tv_sec)*1000000;
+  usec+=(tv.tv_usec-last_force_queue.tv_usec);
 
-    if (usec >= REQUEST_PERIOD) {
-      static int i =0; 
-//      printf("Sending packet of size %d\n", a->works_pending_tx);      
-      spondoolies_flush_queue(cgpu, a);
-      last_force_queue = tv;
-    }
+  if (usec >= REQUEST_PERIOD || a->reset_mg_queue) {
+    static int i =0; 
+    //printf("Sending packet of size %d\n", a->works_pending_tx);      
+    spondoolies_flush_queue(cgpu, a);
+    last_force_queue = tv;
+  }
 
   // see if we have enough jobs
   if (a->works_pending_tx >= REQUEST_SIZE) {
@@ -290,13 +309,11 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 
   // see if can take 1 more job.
   int next_job_id =  (a->current_job_id+1)%MAX_JOBS_IN_MINERGATE;
-    if (a->my_jobs[next_job_id].cgminer_work) {
-      cgsleep_ms(40);
-      ret = true;
-      goto return_unlock;
-    }
-
-
+  if (a->my_jobs[next_job_id].cgminer_work) {
+    cgsleep_ms(40);
+    ret = true;
+    goto return_unlock;
+  }
   struct work *work;
   work = get_queued(cgpu);
   if (!work) {
@@ -317,19 +334,18 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   a->my_jobs[a->current_job_id].state = SPONDWORK_STATE_IN_BUSY;
   a->my_jobs[a->current_job_id].ntime_clones = 0;
   //printf("Start with %d\n", a->current_job_id);
-
+  
   int ntime_clones = (work->drv_rolllimit < MAX_NROLES)?work->drv_rolllimit:MAX_NROLES;
   for (i = 0 ; i < ntime_clones ; i++) {
     minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];    
-    fill_minergate_request(pkt_job, work, i);
+    fill_minergate_request(a, pkt_job, work, i);
     a->works_in_driver++;
     a->works_pending_tx++;        
     a->mp_next_req->req_count++;    
     a->my_jobs[a->current_job_id].merkel_root = pkt_job->mrkle_root;  
     a->my_jobs[a->current_job_id].ntime_clones++;
   }
-  
-  
+
  return_unlock:
   mutex_unlock(&a->lock);
   return ret;
@@ -396,6 +412,9 @@ static int64_t spond_scanhash(struct thr_info *thr)
 // Drop all current work
 void spond_dropwork(struct spond_adapter *a) {
     int job_id;
+    a->reset_mg_queue = 1;
+#if 0
+    // Let the MG responce cause us to drop those packets.
     for (job_id=0; job_id<0x100;job_id++) {
         if ((a->my_jobs[job_id].cgminer_work) ||
            (a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY)) {                
@@ -406,6 +425,8 @@ void spond_dropwork(struct spond_adapter *a) {
               a->my_jobs[job_id].state = SPONDWORK_STATE_EMPTY;
         }
     }
+    printf("----- Drop old requests\n");
+#endif
 }
 
 

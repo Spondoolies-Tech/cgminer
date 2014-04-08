@@ -30,7 +30,7 @@ minergate_req_packet *allocate_minergate_packet_req(
 	p->protocol_version = MINERGATE_PROTOCOL_VERSION;
 	p->request_id = request_id;
 	p->magic = 0xcaf4;
-	p->connect = 1; // first packet
+	p->mask |= 0x01; // first packet
 	return p;
 }
 

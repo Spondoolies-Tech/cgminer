@@ -30,7 +30,7 @@
 
 
 
-#define MINERGATE_PROTOCOL_VERSION 4
+#define MINERGATE_PROTOCOL_VERSION 5
 #define MINERGATE_SOCKET_FILE "/tmp/connection_pipe"
 
 
@@ -51,7 +51,7 @@ typedef struct {
   uint8_t leading_zeroes;
   uint8_t ntime_limit;
   uint8_t ntime_offset;
-  uint8_t resr1;
+  uint8_t resr1; 
 } minergate_do_job_req;
 
 #define MAX_REQUESTS 100
@@ -74,7 +74,7 @@ typedef struct {
 	uint8_t requester_id;
 	uint8_t request_id;
 	uint8_t protocol_version;
-	uint8_t connect; // = 1 on first request 
+	uint8_t mask; // 0x01 = first request, 0x2 = drop old work
 	uint16_t magic; // 0xcafe
 	uint16_t req_count;
 	minergate_do_job_req req[MAX_REQUESTS]; // array of requests
