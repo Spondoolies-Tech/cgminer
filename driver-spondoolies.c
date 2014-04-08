@@ -149,7 +149,6 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu,
        send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
        if (a->reset_mg_queue) {
          a->mp_next_req->mask |= 0x02;
-         a->reset_mg_queue = 0;         
        } else {
          a->mp_next_req->mask &= ~0x02;
        }
@@ -201,10 +200,9 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
   // Clean MG socket
   a->reset_mg_queue = 1;
   spondoolies_flush_queue(cgpu, a);
-  a->reset_mg_queue = 1;
   spondoolies_flush_queue(cgpu, a);
-  a->reset_mg_queue = 1;  
   spondoolies_flush_queue(cgpu, a);
+  a->reset_mg_queue = 0;  
   applog(LOG_DEBUG, "SPOND spondoolies_detect done");
 }
 
@@ -283,6 +281,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   // Only once every 1/10 second do work.
   struct spond_adapter* a = cgpu->device_data;
   int ret = false;
+  static int fast_job_update = 0;
   bool queue_full = false; // queue not full
   mutex_lock(&a->lock);
 
@@ -294,15 +293,23 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   usec=(tv.tv_sec-last_force_queue.tv_sec)*1000000;
   usec+=(tv.tv_usec-last_force_queue.tv_usec);
 
-  if (usec >= REQUEST_PERIOD || a->reset_mg_queue) {
+
+  if (usec >= REQUEST_PERIOD || 
+      a->reset_mg_queue ||
+      (fast_job_update && a->works_pending_tx == REQUEST_SIZE)) {
+    fast_job_update = 0;
     static int i =0; 
     //printf("Sending packet of size %d\n", a->works_pending_tx);      
+    if (a->reset_mg_queue) {
+      fast_job_update = 1;
+    }
     spondoolies_flush_queue(cgpu, a);
+    a->reset_mg_queue = 0;
     last_force_queue = tv;
   }
 
   // see if we have enough jobs
-  if (a->works_pending_tx >= REQUEST_SIZE) {
+  if (a->works_pending_tx == REQUEST_SIZE) {
     cgsleep_ms(40);
     ret = true;
     goto return_unlock;
