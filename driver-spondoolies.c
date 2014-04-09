@@ -137,7 +137,8 @@ int init_socket() {
 
 
 static bool spondoolies_flush_queue(struct cgpu_info *cgpu, 
-                                    struct spond_adapter* a)
+                                    struct spond_adapter* a,
+                                    bool flush_queue)
 {
     if (!a->parse_resp) {
       static int i = 0;
@@ -147,8 +148,8 @@ static bool spondoolies_flush_queue(struct cgpu_info *cgpu,
         }
        assert(a->works_in_minergate_and_pending_tx + a->works_pending_tx == a->works_in_driver);   
        send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
-       if (a->reset_mg_queue) {
-         a->mp_next_req->mask |= 0x02;
+       if (flush_queue) {
+         a->mp_next_req->mask |= 0x02;     
        } else {
          a->mp_next_req->mask &= ~0x02;
        }
@@ -198,11 +199,9 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
 
   assert(add_cgpu(cgpu));
   // Clean MG socket
-  a->reset_mg_queue = 1;
-  spondoolies_flush_queue(cgpu, a);
-  spondoolies_flush_queue(cgpu, a);
-  spondoolies_flush_queue(cgpu, a);
-  a->reset_mg_queue = 0;  
+  spondoolies_flush_queue(cgpu, a, true);
+  spondoolies_flush_queue(cgpu, a, true);
+  spondoolies_flush_queue(cgpu, a, true);
   applog(LOG_DEBUG, "SPOND spondoolies_detect done");
 }
 
@@ -211,7 +210,6 @@ static struct api_data *spondoolies_api_stats(struct cgpu_info *cgpu)
 {
   struct api_data *root = NULL;
   applog(LOG_DEBUG, "SPOND spondoolies_api_stats");
-
   applog(LOG_DEBUG, "SPOND spondoolies_api_stats done");
   return root;
 }
@@ -281,10 +279,10 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   // Only once every 1/10 second do work.
   struct spond_adapter* a = cgpu->device_data;
   int ret = false;
-  static int fast_job_update = 0;
   bool queue_full = false; // queue not full
   mutex_lock(&a->lock);
 
+  passert(a->works_pending_tx <= REQUEST_SIZE);
 
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -293,18 +291,16 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   usec=(tv.tv_sec-last_force_queue.tv_sec)*1000000;
   usec+=(tv.tv_usec-last_force_queue.tv_usec);
 
-
-  if (usec >= REQUEST_PERIOD || 
-      a->reset_mg_queue ||
-      (fast_job_update && a->works_pending_tx == REQUEST_SIZE)) {
-    fast_job_update = 0;
+  if ((usec >= REQUEST_PERIOD) || 
+      (a->reset_mg_queue == 2) ||
+      ((a->reset_mg_queue == 1) && (a->works_pending_tx == REQUEST_SIZE))) {
     static int i =0; 
-    //printf("Sending packet of size %d\n", a->works_pending_tx);      
+    //printf("reset_mg_queue %x %x\n",usec,a->reset_mg_queue);
+    //printf("Sending packet of size %d\n", a->works_pending_tx);  
+    spondoolies_flush_queue(cgpu, a, (a->reset_mg_queue == 2));
     if (a->reset_mg_queue) {
-      fast_job_update = 1;
+      a->reset_mg_queue--;
     }
-    spondoolies_flush_queue(cgpu, a);
-    a->reset_mg_queue = 0;
     last_force_queue = tv;
   }
 
@@ -344,7 +340,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
   //printf("Start with %d\n", a->current_job_id);
   
   int ntime_clones = (work->drv_rolllimit < MAX_NROLES)?work->drv_rolllimit:MAX_NROLES;
-  for (i = 0 ; i < ntime_clones ; i++) {
+  for (i = 0 ; (i < ntime_clones) && (a->works_pending_tx < REQUEST_SIZE) ; i++) {
     minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];    
     fill_minergate_request(a, pkt_job, work, i);
     a->works_in_driver++;
@@ -420,7 +416,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
 // Drop all current work
 void spond_dropwork(struct spond_adapter *a) {
     int job_id;
-    a->reset_mg_queue = 1;
+    a->reset_mg_queue = 2;
 #if 0
     // Let the MG responce cause us to drop those packets.
     for (job_id=0; job_id<0x100;job_id++) {

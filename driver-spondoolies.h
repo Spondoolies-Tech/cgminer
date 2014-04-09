@@ -55,7 +55,7 @@ struct spond_adapter {
   int works_in_minergate_and_pending_tx;
   int works_pending_tx;
   int socket_fd;
-  int reset_mg_queue;
+  int reset_mg_queue;  // 2=reset, 1=fast send, 0=nada
   int current_job_id; 
   int parse_resp;
   minergate_req_packet* mp_next_req;
