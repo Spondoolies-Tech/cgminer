@@ -80,6 +80,9 @@ char *curly = ":D";
 #include "driver-spondoolies.h"
 #endif
 
+#ifdef USE_SPONDOOLIES_V3
+#include "driver-spondoolies-v3.h"
+#endif
 
 #ifdef USE_BITFURY
 #include "driver-bitfury.h"
@@ -1722,6 +1725,9 @@ static char *opt_verusage_and_exit(const char *extra)
 #ifdef USE_SPONDOOLIES
 		"spondoolies "
 #endif
+#ifdef USE_SPONDOOLIES_V3
+		"spondooliesv3 "
+#endif
 		"mining support.\n"
 		, packagename);
 	printf("%s", opt_usage(opt_argv0, extra));
@@ -1787,7 +1793,7 @@ static bool jobj_binary(const json_t *obj, const char *key,
 }
 #endif
 
-static void calc_midstate(struct work *work)
+void calc_midstate(struct work *work)
 {
 	unsigned char data[64];
 	uint32_t *data32 = (uint32_t *)data;
@@ -1832,6 +1838,9 @@ void clean_work(struct work *work)
 	free(work->ntime);
 	free(work->coinbase);
 	free(work->nonce1);
+#ifdef DEVICE_SCANS_NONCE2
+	free(work->merklebin);
+#endif // DEVICE_SCANS_NONCE2
 	memset(work, 0, sizeof(struct work));
 }
 
@@ -1843,7 +1852,7 @@ void _free_work(struct work *work)
 	free(work);
 }
 
-static void gen_hash(unsigned char *data, unsigned char *hash, int len);
+void gen_hash(unsigned char *data, unsigned char *hash, int len);
 static void calc_diff(struct work *work, double known);
 char *workpadding = "000000800000000000000000000000000000000000000000000000000000000000000000000000000000000080020000";
 
@@ -4185,6 +4194,13 @@ static void _copy_work(struct work *work, const struct work *base_work, int noff
 	}
 	if (base_work->coinbase)
 		work->coinbase = strdup(base_work->coinbase);
+
+#ifdef DEVICE_SCANS_NONCE2
+	if (work->merklebin) {
+		work->merklebin = malloc(32 * work->merkles);
+		memcpy(work->merklebin, base_work->merklebin, 32 * work->merkles);
+	}
+#endif // DEVICE_SCANS_NONCE2
 }
 
 void set_work_ntime(struct work *work, int ntime)
@@ -6735,7 +6751,7 @@ out_unlock:
 	return work;
 }
 
-static void gen_hash(unsigned char *data, unsigned char *hash, int len)
+void gen_hash(unsigned char *data, unsigned char *hash, int len)
 {
 	unsigned char hash1[32];
 
@@ -6858,6 +6874,20 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
 	work->job_id = strdup(pool->swork.job_id);
 	work->nonce1 = strdup(pool->nonce1);
 	work->ntime = strdup(pool->ntime);
+
+#ifdef DEVICE_SCANS_NONCE2
+	work->coinbase_len = pool->coinbase_len;
+	work->coinbase = malloc(work->coinbase_len);
+	memcpy(work->coinbase, pool->coinbase, work->coinbase_len);
+
+	work->nonce2_offset = pool->nonce2_offset;
+
+	work->merkles = pool->merkles;
+	work->merklebin = malloc(work->merkles * 32);
+	for (i = 0; i < work->merkles; ++i) {
+		memcpy(work->merklebin + 32 * i, pool->swork.merkle_bin[i], 32);
+	}
+#endif // DEVICE_SCANS_NONCE2
 	cg_runlock(&pool->data_lock);
 
 	if (opt_debug) {
@@ -9377,6 +9407,7 @@ int main(int argc, char *argv[])
 
 	strcat(opt_kernel_path, "/");
 
+	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	if (want_per_device_stats)
 		opt_log_output = true;
 
@@ -9402,12 +9433,15 @@ int main(int argc, char *argv[])
 	pthread_detach(thr->pth);
 #endif
 
+	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	/* Use the DRIVER_PARSE_COMMANDS macro to fill all the device_drvs */
 	DRIVER_PARSE_COMMANDS(DRIVER_FILL_DEVICE_DRV)
 
+	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	/* Use the DRIVER_PARSE_COMMANDS macro to detect all devices */
 	DRIVER_PARSE_COMMANDS(DRIVER_DRV_DETECT_ALL)
 
+	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	if (opt_display_devs) {
 		applog(LOG_ERR, "Devices detected:");
 		for (i = 0; i < total_devices; ++i) {

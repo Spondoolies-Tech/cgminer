@@ -115,6 +115,11 @@ cgminer_SOURCES += driver-spondoolies.c driver-spondoolies.h \
 		   mg_proto_parser.c mg_proto_parser.h
 endif
 
+if HAS_SPONDOOLIES_V3
+cgminer_SOURCES += driver-spondoolies-v3.c driver-spondoolies-v3.h \
+		   mg_proto_parser-v3.c mg_proto_parser-v3.h
+endif
+
 if HAS_BAB
 cgminer_SOURCES += driver-bab.c
 endif

@@ -244,7 +244,8 @@ static inline int fsync (int fd)
 	DRIVER_ADD_COMMAND(drillbit) \
 	DRIVER_ADD_COMMAND(bab) \
 	DRIVER_ADD_COMMAND(minion) \
-	DRIVER_ADD_COMMAND(spondoolies)
+	DRIVER_ADD_COMMAND(spondoolies) \
+	DRIVER_ADD_COMMAND(spondooliesv3)
 
 #define DRIVER_PARSE_COMMANDS(DRIVER_ADD_COMMAND) \
 	FPGA_PARSE_COMMANDS(DRIVER_ADD_COMMAND) \
@@ -1377,6 +1378,14 @@ struct work {
 	struct timeval	tv_work_start;
 	struct timeval	tv_work_found;
 	char		getwork_mode;
+
+#define DEVICE_SCANS_NONCE2
+#ifdef DEVICE_SCANS_NONCE2
+	int coinbase_len; /* coinbase already has a field above */
+	int nonce2_offset;
+	int merkles;
+	unsigned char *merklebin;
+#endif // DEVICE_SCANS_NONCE2
 };
 
 #ifdef USE_MODMINER
