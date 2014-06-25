@@ -9407,7 +9407,6 @@ int main(int argc, char *argv[])
 
 	strcat(opt_kernel_path, "/");
 
-	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	if (want_per_device_stats)
 		opt_log_output = true;
 
@@ -9433,15 +9432,12 @@ int main(int argc, char *argv[])
 	pthread_detach(thr->pth);
 #endif
 
-	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	/* Use the DRIVER_PARSE_COMMANDS macro to fill all the device_drvs */
 	DRIVER_PARSE_COMMANDS(DRIVER_FILL_DEVICE_DRV)
 
-	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	/* Use the DRIVER_PARSE_COMMANDS macro to detect all devices */
 	DRIVER_PARSE_COMMANDS(DRIVER_DRV_DETECT_ALL)
 
-	applog(LOG_WARNING, "%s, %d", __FUNCTION__, __LINE__);
 	if (opt_display_devs) {
 		applog(LOG_ERR, "Devices detected:");
 		for (i = 0; i < total_devices; ++i) {

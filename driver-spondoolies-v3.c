@@ -63,27 +63,73 @@ static inline void swap32yes(void *out, const void *in, size_t sz)
 		(((uint32_t*)out)[swapcounter]) = swab32(((uint32_t*)in)[swapcounter]);
 }
 
+static int do_read(int s, void *p, int len)
+{
+	void *p1 = p;
+	int left = len;
+	while (left) {
+		fd_set set;
+		FD_ZERO(&set);
+		FD_SET(s, &set);
+
+		int n;
+		if ((n = select(s + 1, &set, NULL, NULL, NULL)) < 0) {
+			fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
+			return n;
+		}
+
+		if ((n = read(s, p1, left)) < 0) {
+			fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
+			return n;
+		}
+
+		left -= n;
+		p1 = (void *)((unsigned char *)p + n);
+	}
+	return len;
+}
+
+static int do_write(int s, const void *p, int len)
+{
+	const void *p1 = p;
+	int left = len;
+	while (left) {
+		fd_set set;
+		FD_ZERO(&set);
+		FD_SET(s, &set);
+
+		int n;
+		if ((n = select(s + 1, NULL, &set, NULL, NULL)) < 0) {
+			fprintf(stderr, "%s, %d socket_fd=%d nwrote=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
+			return n;
+		}
+
+		if ((n = write(s, p1, left)) < 0) {
+			fprintf(stderr, "%s, %d socket_fd=%d nwrote=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
+			return n;
+		}
+
+		left -= n;
+		p1 = (void *)((unsigned char *)p + n);
+	}
+	return len;
+}
+
 static void send_minergate_pkt(const minergate_req_packet* mp_req, minergate_rsp_packet* mp_rsp,
 			       int  socket_fd)
 {
 	int nbytes, nwrote, nread;
 
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 	nbytes = sizeof(minergate_req_packet);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
-	nwrote = write(socket_fd, (const void *)mp_req, nbytes);
-	fprintf(stderr, "%s, %d socket_fd=%d nwrote=%d nbytes=%d\n", __FUNCTION__, __LINE__, socket_fd, nwrote, nbytes);
+	nwrote = do_write(socket_fd, (const void *)mp_req, nbytes);
 	if (unlikely(nwrote != nbytes)) {
 		fprintf(stderr, "%s, %d socket_fd=%d nwrote=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, socket_fd, nwrote, nbytes, strerror(errno), errno);
 		_quit(-1);
 	}
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 	nbytes = sizeof(minergate_rsp_packet);
 	nread = read(socket_fd, (void *)mp_rsp, nbytes);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 	if (unlikely(nread != nbytes))
 		_quit(-1);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 	passert(mp_rsp->magic == 0xcaf4);
 }
 
@@ -129,24 +175,18 @@ static int init_socket(bool nonce2_scanner)
 
 static bool spondoolies_flush_queue(struct spond_adapter* a, bool flush_queue)
 {
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 	if (!a->parse_resp) {
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 		static int i = 0;
 
 		if (i++ % 10 == 0 && a->works_in_minergate_and_pending_tx + a->works_pending_tx != a->works_in_driver)
 			printf("%d + %d != %d\n", a->works_in_minergate_and_pending_tx, a->works_pending_tx,a->works_in_driver);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 		assert(a->works_in_minergate_and_pending_tx + a->works_pending_tx == a->works_in_driver);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 		send_minergate_pkt(a->mp_next_req,  a->mp_last_rsp, a->socket_fd);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 		if (flush_queue)
 			a->mp_next_req->mask |= 0x02;
 		else
 			a->mp_next_req->mask &= ~0x02;
 
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 		a->mp_next_req->req_count = 0;
 		a->parse_resp = 1;
 		a->works_in_minergate_and_pending_tx += a->works_pending_tx;
@@ -192,12 +232,9 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
 
 	assert(add_cgpu(cgpu));
 	// Clean MG socket
-	fprintf(stderr, "%s, %d connected to %d %d\n", __FUNCTION__, __LINE__, a->socket_fd, a->nonce2_fd);
-	spondoolies_flush_queue(a, true);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
 	spondoolies_flush_queue(a, true);
 	spondoolies_flush_queue(a, true);
-	fprintf(stderr, "%s, %d\n", __FUNCTION__, __LINE__);
+	spondoolies_flush_queue(a, true);
 	applog(LOG_DEBUG, "SPOND spondoolies_detect done");
 }
 
@@ -361,7 +398,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 
 	printf("%s, %d: Writing setwork with msg_type=%d work=%p coinbase_len=%d\n", __FUNCTION__, __LINE__, setwork.msg_type, work, work->coinbase_len);
 
-	if (write(a->nonce2_fd, &setwork, sizeof(setwork)) != sizeof(setwork)) {
+	if (do_write(a->nonce2_fd, &setwork, sizeof(setwork)) != sizeof(setwork)) {
 		_quit(-1);
 	}
 
@@ -423,7 +460,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 
 	printf("%s, %d: Writing getnonce2s with msg_type=%d\n", __FUNCTION__, __LINE__, getnonce2s.msg_type);
 
-	if (write(a->nonce2_fd, &getnonce2s, sizeof(getnonce2s)) != sizeof(getnonce2s)) {
+	if (do_write(a->nonce2_fd, &getnonce2s, sizeof(getnonce2s)) != sizeof(getnonce2s)) {
 		_quit(-1);
 	}
 
