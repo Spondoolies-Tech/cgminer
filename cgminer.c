@@ -1044,6 +1044,19 @@ static void load_temp_cutoffs()
 	}
 }
 
+static char *set_float_125_to_500(const char *arg, float *i)
+{
+	char *err = opt_set_floatval(arg, i);
+
+	if (err)
+		return err;
+
+	if (*i < 125 || *i > 500)
+		return "Value out of range";
+
+	return NULL;
+}
+
 static char *set_api_allow(const char *arg)
 {
 	opt_set_charp(arg, &opt_api_allow);
@@ -1122,6 +1135,7 @@ static char *set_int_150_to_500(const char *arg, int *i)
 
 	return NULL;
 }
+#endif
 
 static char *set_null(const char __maybe_unused *arg)
 {
