@@ -63,58 +63,6 @@ static inline void swap32yes(void *out, const void *in, size_t sz)
 		(((uint32_t*)out)[swapcounter]) = swab32(((uint32_t*)in)[swapcounter]);
 }
 
-static int do_read(int s, void *p, int len)
-{
-	void *p1 = p;
-	int left = len;
-	while (left) {
-		fd_set set;
-		FD_ZERO(&set);
-		FD_SET(s, &set);
-
-		int n;
-		if ((n = select(s + 1, &set, NULL, NULL, NULL)) < 0) {
-			fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
-			return n;
-		}
-
-		if ((n = read(s, p1, left)) < 0) {
-			fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
-			return n;
-		}
-
-		left -= n;
-		p1 = (void *)((unsigned char *)p + n);
-	}
-	return len;
-}
-
-static int do_write(int s, const void *p, int len)
-{
-	const void *p1 = p;
-	int left = len;
-	while (left) {
-		fd_set set;
-		FD_ZERO(&set);
-		FD_SET(s, &set);
-
-		int n;
-		if ((n = select(s + 1, NULL, &set, NULL, NULL)) < 0) {
-			fprintf(stderr, "%s, %d socket_fd=%d nwrote=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
-			return n;
-		}
-
-		if ((n = write(s, p1, left)) < 0) {
-			fprintf(stderr, "%s, %d socket_fd=%d nwrote=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, s, len - left, left, strerror(errno), errno);
-			return n;
-		}
-
-		left -= n;
-		p1 = (void *)((unsigned char *)p + n);
-	}
-	return len;
-}
-
 static void send_minergate_pkt(const minergate_req_packet* mp_req, minergate_rsp_packet* mp_rsp,
 			       int  socket_fd)
 {
@@ -128,8 +76,11 @@ static void send_minergate_pkt(const minergate_req_packet* mp_req, minergate_rsp
 	}
 	nbytes = sizeof(minergate_rsp_packet);
 	nread = read(socket_fd, (void *)mp_rsp, nbytes);
-	if (unlikely(nread != nbytes))
+	if (unlikely(nread != nbytes)) {
+		fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, socket_fd, nread, nbytes, strerror(errno), errno);
 		_quit(-1);
+	}
+	if (0) fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, socket_fd, nread, nbytes, strerror(errno), errno);
 	passert(mp_rsp->magic == 0xcaf4);
 }
 

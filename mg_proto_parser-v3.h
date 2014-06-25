@@ -126,4 +126,6 @@ typedef struct {
 	uint64_t nonce2s[MAX_NONCE2_SETSIZE];
 } nonce2gate_gotnonce2s;
 
+int do_read(int s, void *p, int len);
+int do_write(int s, const void *p, int len);
 #endif
