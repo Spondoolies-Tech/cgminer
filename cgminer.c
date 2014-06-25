@@ -1044,7 +1044,73 @@ static void load_temp_cutoffs()
 	}
 }
 
-static char *set_float_125_to_500(const char *arg, float *i)
+static char *set_api_allow(const char *arg)
+{
+	opt_set_charp(arg, &opt_api_allow);
+
+	return NULL;
+}
+
+static char *set_api_groups(const char *arg)
+{
+	opt_set_charp(arg, &opt_api_groups);
+
+	return NULL;
+}
+
+static char *set_api_description(const char *arg)
+{
+	opt_set_charp(arg, &opt_api_description);
+
+	return NULL;
+}
+
+static char *set_api_mcast_addr(const char *arg)
+{
+	opt_set_charp(arg, &opt_api_mcast_addr);
+
+	return NULL;
+}
+
+static char *set_api_mcast_code(const char *arg)
+{
+	opt_set_charp(arg, &opt_api_mcast_code);
+
+	return NULL;
+}
+
+static char *set_api_mcast_des(const char *arg)
+{
+	opt_set_charp(arg, &opt_api_mcast_des);
+
+	return NULL;
+}
+
+
+#ifdef USE_SPONDOOLIES
+static char *set_spondoolies_options(const char *arg)
+{
+	return NULL;
+}
+#endif
+
+
+#ifdef USE_ICARUS
+static char *set_icarus_options(const char *arg)
+{
+	opt_set_charp(arg, &opt_icarus_options);
+
+	return NULL;
+}
+
+static char *set_icarus_timing(const char *arg)
+{
+	opt_set_charp(arg, &opt_icarus_timing);
+
+	return NULL;
+}
+
+static char *set_int_150_to_500(const char *arg, int *i)
 {
 	char *err = opt_set_floatval(arg, i);
 
@@ -7185,6 +7251,7 @@ void inc_hw_errors(struct thr_info *thr)
 
 	mutex_lock(&stats_lock);
 	hw_errors++;
+	printf("%s, %d %p\n",__FUNCTION__, __LINE__, thr);
 	thr->cgpu->hw_errors++;
 	mutex_unlock(&stats_lock);
 
@@ -7225,9 +7292,7 @@ bool test_nonce_diff(struct work *work, uint32_t nonce, double diff)
 static void update_work_stats(struct thr_info *thr, struct work *work)
 {
 	double test_diff = current_diff;
-
 	work->share_diff = share_diff(work);
-
 	if (unlikely(work->share_diff >= test_diff)) {
 		work->block = true;
 		work->pool->solved++;
@@ -7237,7 +7302,9 @@ static void update_work_stats(struct thr_info *thr, struct work *work)
 	}
 
 	mutex_lock(&stats_lock);
+	
 	total_diff1 += work->device_diff;
+	
 	thr->cgpu->diff1 += work->device_diff;
 	work->pool->diff1 += work->device_diff;
 	thr->cgpu->last_device_valid_work = time(NULL);
@@ -7250,7 +7317,6 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 {
 	struct work *work_out;
 	update_work_stats(thr, work);
-
 	if (!fulltest(work->hash, work->target)) {
 		applog(LOG_INFO, "%s %d: Share above target", thr->cgpu->drv->name,
 		       thr->cgpu->device_id);
@@ -7264,13 +7330,12 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 /* Returns true if nonce for work was a valid share */
 bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
-	if (test_nonce(work, nonce))
+	if (test_nonce(work, nonce)) {
 		submit_tested_work(thr, work);
-	else {
+	} else {
 		inc_hw_errors(thr);
 		return false;
 	}
-
 	if (opt_benchfile && opt_benchfile_display)
 		benchfile_dspwork(work, nonce);
 
@@ -8845,6 +8910,11 @@ void enable_curses(void) {
 	unlock_curses();
 }
 #endif
+
+
+//#ifdef USE_SPONDOOLIES
+//extern struct device_drv spondoolies_drv;
+//#endif
 
 static int cgminer_id_count = 0;
 

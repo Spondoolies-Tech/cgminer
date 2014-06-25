@@ -203,6 +203,9 @@ static const char *DEVICECODE = ""
 #ifdef USE_SPONDOOLIES
 			"SPN "
 #endif
+#ifdef USE_SPONDOOLIES_V3
+			"SP3 "
+#endif
 
 			"";
 
