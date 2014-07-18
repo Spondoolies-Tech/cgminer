@@ -415,25 +415,33 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 		_quit(-1);
 	}
 
+	printf("%s, %d: Wrote getnonce2s with msg_type=%d\n", __FUNCTION__, __LINE__, getnonce2s.msg_type);
+
  	nonce2gate_gotnonce2s gotnonce2s;
 	if (read(a->nonce2_fd, &gotnonce2s, sizeof(gotnonce2s)) != sizeof(gotnonce2s)) {
 		_quit(-1);
 	}
 
+	printf("%s, %d: Read gotnonce2s with msg_type=%d\n", __FUNCTION__, __LINE__, getnonce2s.msg_type);
+
 	work = gotnonce2s.work;
 
 	// Create up to MAX_NROLLS works using ntime increment
 	a->current_job_id = next_job_id;
+	printf("%s, %d: work=%p\n", __FUNCTION__, __LINE__, work);
 	// work->subid = a->current_job_id;
 	++work->subid; // We never need this to reference the current_job_id... instead we use it as a reference counter
 
 	// Get pointer for the request
+	printf("%s, %d:\n", __FUNCTION__, __LINE__);
 	a->my_jobs[a->current_job_id].cgminer_work = work;
 	a->my_jobs[a->current_job_id].state = SPONDWORK_STATE_IN_BUSY;
 	a->my_jobs[a->current_job_id].ntime_clones = 0;
 
 	ntime_clones = (work->drv_rolllimit < MAX_NROLLS) ? work->drv_rolllimit : MAX_NROLLS;
+	printf("%s, %d:\n", __FUNCTION__, __LINE__);
 	for (i = 0 ; (i < ntime_clones) && (a->works_pending_tx < REQUEST_SIZE) ; i++) {
+		printf("%s, %d: i=%d\n", __FUNCTION__, __LINE__, i);
 		minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];
 		fill_minergate_request(pkt_job, work, i, &gotnonce2s, gotnonce2s.nonce2_set_size);
 		pkt_job->work_id_in_sw = a->current_job_id;
@@ -444,6 +452,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 		a->my_jobs[a->current_job_id].ntime_clones++;
 	}
 
+	printf("%s, %d: Leaving\n", __FUNCTION__, __LINE__);
 return_unlock:
 	mutex_unlock(&a->lock);
 
