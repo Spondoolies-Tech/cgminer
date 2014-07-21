@@ -55,6 +55,43 @@
 #  define LOCAL_swap32le(type, var, sz)  ;
 #endif
 
+static char *print_binary(unsigned char *data, int len, char *print_area)
+{
+	char *p = print_area;
+	int n;
+	for (n = 0; n < len; ++n) {
+		sprintf(p, "%02x", data[n]);
+		p += 2;
+		if (((n + 1) % 4) == 0 && n != len - 1) {
+			sprintf(p++, "-");
+		}
+	}
+	return print_area;
+}
+
+static char *print_binary_flip(unsigned char *dataIn, int lenIn, char *print_area)
+{
+	int len = ((lenIn - 1) / 4 + 1) * 4;
+	uint8_t data[len];
+	memset(data, 0, len);
+	memcpy(data, dataIn, lenIn);
+	uint32_t *d = (uint32_t*)data;
+	int i, n;
+	for (i = 0; i < len / 4; ++i) {
+		d[i] = htonl(d[i]);
+	}
+
+	char *p = print_area;
+	for (n = 0; n < len; ++n) {
+		sprintf(p, "%02x", data[n]);
+		p += 2;
+		if (((n + 1) % 4) == 0 && n != len - 1) {
+			sprintf(p++, "-");
+		}
+	}
+	return print_area;
+}
+
 static inline void swap32yes(void *out, const void *in, size_t sz)
 {
 	size_t swapcounter;
@@ -229,6 +266,8 @@ static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
 {
 }
 
+static char p[2048];
+
 extern void gen_hash(unsigned char *data, unsigned char *hash, int len);
 extern void calc_midstate(struct work *work);
 static void fill_minergate_request(minergate_do_job_req* work, struct work *cg_work,
@@ -248,12 +287,14 @@ static void fill_minergate_request(minergate_do_job_req* work, struct work *cg_w
 
 		uint8_t merkle_root[32];
 		gen_hash(coinbase, merkle_root, cg_work->coinbase_len);
+		if (0) printf("%s, %d: coinbase=%s\n", __FUNCTION__, __LINE__, print_binary(coinbase, cg_work->coinbase_len, p));
 
 		uint8_t merkle_sha[64];
 		for (i = 0; i < cg_work->merkles; ++i) {
  			memcpy(merkle_sha, merkle_root, 32);
 			memcpy(merkle_sha + 32, cg_work->merklebin + i * 32, 32);
 			gen_hash(merkle_sha, merkle_root, 64);
+			if (0) printf("%s, %d: merkle-bin=%s merkle_root=%s\n", __FUNCTION__, __LINE__, print_binary(cg_work->merklebin + i * 32, 32, p), print_binary_flip(merkle_root, 32, p + 1024));
 		}
 		
 		uint8_t merkle_root_swapped[32];
@@ -266,12 +307,15 @@ static void fill_minergate_request(minergate_do_job_req* work, struct work *cg_w
 		LOCAL_swap32le(unsigned char, cg_work->midstate, 32/4)
 		memcpy(work->midstate[n], cg_work->midstate, 32);
 
-		uint32_t mrkl_root = *(unsigned int *)(cg_work->data + 64) & 0xfff;
+		// uint32_t mrkl_root = *(uint32_t *)(cg_work->data + 64);
+		uint32_t mrkl_root = *(uint32_t *)(merkle_root + 28);
 		if (!n) {
 			mrkl_root0 = mrkl_root;
 		}
-		else if (mrkl_root0 != mrkl_root) {
-			printf("mrkl_roots done match, bailing mrkl_root[%d]=%4x != mrkl_root0=%4x\n", n, mrkl_root, mrkl_root0);
+		// else if (mrkl_root0 != mrkl_root) {
+		else if ((htonl(mrkl_root0) & 0xff) != (htonl(mrkl_root) & 0xff)) {
+			printf("mrkl_roots don't match, bailing mrkl_root[%d](%016llx)=%08x != mrkl_root0(%016llx)=%08x\n", n, nonce2s->nonce2s[n], mrkl_root, nonce2s->nonce2s[0], mrkl_root0);
+			exit(0);
 		}
 	}
 
@@ -300,11 +344,17 @@ static struct timeval last_force_queue = {0};
 
 static void check_release(struct cgpu_info *cgpu, struct work *work)
 {
+	printf("%s, %s, %d %p:\n", __FILE__, __FUNCTION__, __LINE__, work);
+	fflush(stdout);
  	// NONCE2 scanner is not using this if devflag = 0
  	// No hashing is being done with this if subid = 0
 	if (!work->devflag && !work->subid) {
+		printf("%s, %s, %d %p:\n", __FILE__, __FUNCTION__, __LINE__, work);
+		fflush(stdout);
 		work_completed(cgpu, work);
 	}
+	printf("%s, %s, %d %p:\n", __FILE__, __FUNCTION__, __LINE__, work);
+	fflush(stdout);
 }
 
 // Changing the functionality here...
@@ -433,15 +483,13 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 	++work->subid; // We never need this to reference the current_job_id... instead we use it as a reference counter
 
 	// Get pointer for the request
-	printf("%s, %d:\n", __FUNCTION__, __LINE__);
 	a->my_jobs[a->current_job_id].cgminer_work = work;
 	a->my_jobs[a->current_job_id].state = SPONDWORK_STATE_IN_BUSY;
 	a->my_jobs[a->current_job_id].ntime_clones = 0;
 
 	ntime_clones = (work->drv_rolllimit < MAX_NROLLS) ? work->drv_rolllimit : MAX_NROLLS;
-	printf("%s, %d:\n", __FUNCTION__, __LINE__);
+	printf("%s, %d: Before going to fill_minergate_request i=%d\n", __FUNCTION__, __LINE__, i);
 	for (i = 0 ; (i < ntime_clones) && (a->works_pending_tx < REQUEST_SIZE) ; i++) {
-		printf("%s, %d: i=%d\n", __FUNCTION__, __LINE__, i);
 		minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];
 		fill_minergate_request(pkt_job, work, i, &gotnonce2s, gotnonce2s.nonce2_set_size);
 		pkt_job->work_id_in_sw = a->current_job_id;
@@ -451,8 +499,8 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 		a->my_jobs[a->current_job_id].merkle_root = pkt_job->mrkle_root;
 		a->my_jobs[a->current_job_id].ntime_clones++;
 	}
+	printf("%s, %d: After going to fill_minergate_request i=%d\n", __FUNCTION__, __LINE__, i);
 
-	printf("%s, %d: Leaving\n", __FUNCTION__, __LINE__);
 return_unlock:
 	mutex_unlock(&a->lock);
 
@@ -488,6 +536,8 @@ static int64_t spond_scanhash(struct thr_info *thr)
 	int64_t ghashes = 0;
 	cgtimer_t cgt;
 	time_t now_t;
+
+	printf("%s, %s, %d:\n", __FILE__, __FUNCTION__, __LINE__);
 
 	cgsleep_prepare_r(&cgt);
 	now_t = time(NULL);
@@ -528,14 +578,14 @@ static int64_t spond_scanhash(struct thr_info *thr)
 #else
 							ok = submit_noffset_nonce(cg_work->thr, cg_work, work->winner_nonce[j], work->ntime_offset);
 #endif
-							//printf("OK on %d:%d = %d\n",work->work_id_in_sw,j, ok);
+							printf("OK on %d:%d = %d\n",work->work_id_in_sw,j, ok);
 							a->wins++;
 						}
 					}
-					//printf("%d ntime_clones = %d\n",job_id,a->my_jobs[job_id].ntime_clones);
+					printf("%d ntime_clones = %d\n",job_id,a->my_jobs[job_id].ntime_clones);
 					if ((--a->my_jobs[job_id].ntime_clones) == 0) {
 						--a->my_jobs[job_id].cgminer_work->subid;
-						//printf("Done with %d\n", job_id);
+						printf("Done with %d\n", job_id);
 						check_release(a->cgpu, a->my_jobs[job_id].cgminer_work);
 						a->good++;
 						a->my_jobs[job_id].cgminer_work = NULL;
@@ -557,6 +607,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
 	}
 	cgsleep_ms_r(&cgt, 40);
 
+	printf("%s, %s, %d:\n", __FILE__, __FUNCTION__, __LINE__);
 	return ghashes;
 }
 

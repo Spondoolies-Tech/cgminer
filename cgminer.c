@@ -7265,7 +7265,6 @@ void inc_hw_errors(struct thr_info *thr)
 
 	mutex_lock(&stats_lock);
 	hw_errors++;
-	printf("%s, %d %p\n",__FUNCTION__, __LINE__, thr);
 	thr->cgpu->hw_errors++;
 	mutex_unlock(&stats_lock);
 
