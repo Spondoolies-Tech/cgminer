@@ -58,8 +58,8 @@ typedef struct {
 } minergate_do_job_req;
 
 #define MAX_REQUESTS 100
-#define MAX_RESPONDS 300
-#define MINERGATE_TOTAL_QUEUE 300
+#define MAX_RESPONDS 100
+#define MINERGATE_TOTAL_QUEUE 100
 
 typedef struct {
 	uint32_t work_id_in_sw;

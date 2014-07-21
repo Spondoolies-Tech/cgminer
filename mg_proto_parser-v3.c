@@ -71,7 +71,7 @@ int do_read(int s, void *p, int len)
 		}
 
 		left -= n;
-		p1 = (void *)((unsigned char *)p + n);
+		p1 = (void *)((unsigned char *)p1 + n);
 	}
 	return len;
 }
@@ -97,7 +97,7 @@ int do_write(int s, const void *p, int len)
 		}
 
 		left -= n;
-		p1 = (void *)((unsigned char *)p + n);
+		p1 = (void *)((unsigned char *)p1 + n);
 	}
 	return len;
 }
