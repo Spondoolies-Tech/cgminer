@@ -112,14 +112,14 @@ static void send_minergate_pkt(const minergate_req_packet* mp_req, minergate_rsp
 		fprintf(stderr, "%s, %d socket_fd=%d nwrote=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, socket_fd, nwrote, nbytes, strerror(errno), errno);
 		_quit(-1);
 	}
-	printf("%s, %d socket_fd=%d nwrote=%d nbytes=%d\n", __FUNCTION__, __LINE__, socket_fd, nwrote, nbytes);
+	if (0) printf("%s, %d socket_fd=%d nwrote=%d nbytes=%d\n", __FUNCTION__, __LINE__, socket_fd, nwrote, nbytes);
 	nbytes = sizeof(minergate_rsp_packet);
 	nread = do_read(socket_fd, (void *)mp_rsp, nbytes);
 	if (unlikely(nread != nbytes)) {
 		fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, socket_fd, nread, nbytes, strerror(errno), errno);
 		_quit(-1);
 	}
-	if (0) fprintf(stderr, "%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, socket_fd, nread, nbytes, strerror(errno), errno);
+	if (0) printf("%s, %d socket_fd=%d nread=%d nbytes=%d error=%s(%d)\n", __FUNCTION__, __LINE__, socket_fd, nread, nbytes, strerror(errno), errno);
 	passert(mp_rsp->magic == 0xcaf4);
 }
 
@@ -470,7 +470,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 	printf("%s, %d: Wrote getnonce2s with msg_type=%d\n", __FUNCTION__, __LINE__, getnonce2s.msg_type);
 
  	nonce2gate_gotnonce2s gotnonce2s;
-	if (read(a->nonce2_fd, &gotnonce2s, sizeof(gotnonce2s)) != sizeof(gotnonce2s)) {
+	if (do_read(a->nonce2_fd, &gotnonce2s, sizeof(gotnonce2s)) != sizeof(gotnonce2s)) {
 		_quit(-1);
 	}
 
@@ -480,7 +480,11 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 
 	// Create up to MAX_NROLLS works using ntime increment
 	a->current_job_id = next_job_id;
-	printf("%s, %d: work=%p\n", __FUNCTION__, __LINE__, work);
+	printf("%s, %d: work=%p gotnonce2s.nonce2_set_size=%d\n", __FUNCTION__, __LINE__, work, gotnonce2s.nonce2_set_size);
+	if (!gotnonce2s.nonce2_set_size) {
+		goto return_unlock;
+	}
+
 	// work->subid = a->current_job_id;
 	++work->subid; // We never need this to reference the current_job_id... instead we use it as a reference counter
 
@@ -495,7 +499,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 		minergate_do_job_req* pkt_job =  &a->mp_next_req->req[a->works_pending_tx];
 		fill_minergate_request(pkt_job, work, i, &gotnonce2s, gotnonce2s.nonce2_set_size);
 		pkt_job->work_id_in_sw = a->current_job_id;
-		printf("%s, %d: i=%d work_id_in_sw=%d wpt=%d req_count=%d\n", __FUNCTION__, __LINE__, i, pkt_job->work_id_in_sw, a->works_pending_tx, a->mp_next_req->req_count);
+		// printf("%s, %d: i=%d work_id_in_sw=%d wpt=%d req_count=%d\n", __FUNCTION__, __LINE__, i, pkt_job->work_id_in_sw, a->works_pending_tx, a->mp_next_req->req_count);
 		a->works_in_driver++;
 		a->works_pending_tx++;
 		a->mp_next_req->req_count++;
@@ -503,7 +507,6 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
 		a->my_jobs[a->current_job_id].ntime_clones++;
 	}
 	printf("%s, %d: After going to fill_minergate_request a->mp_next_req->req[99].work_id_in_sw=%d\n", __FUNCTION__, __LINE__, a->mp_next_req->req[99].work_id_in_sw);
-	fflush(stdout);
 
 return_unlock:
 	mutex_unlock(&a->lock);
@@ -541,8 +544,6 @@ static int64_t spond_scanhash(struct thr_info *thr)
 	cgtimer_t cgt;
 	time_t now_t;
 
-	fprintf(stderr, "%s, %s, %d:\n", __FILE__, __FUNCTION__, __LINE__);
-
 	cgsleep_prepare_r(&cgt);
 	now_t = time(NULL);
 	/* Poll stats only once per second */
@@ -559,13 +560,10 @@ static int64_t spond_scanhash(struct thr_info *thr)
 		ghashes = ghashes  * 10000 * REQUEST_PERIOD;
 		array_size = a->mp_last_rsp->rsp_count;
 		for (i = 0; i < array_size; i++) { // walk the jobs
-			fprintf(stderr, "%s, %d: i=%d array_size=%d\n", __FUNCTION__, __LINE__, i, array_size);
 			int job_id;
 
 			minergate_do_job_rsp* work = a->mp_last_rsp->rsp + i;
-			fprintf(stderr, "%s, %d work=%p\n", __FUNCTION__, __LINE__, work);
 			job_id = work->work_id_in_sw;
-			fprintf(stderr, "%s, %d job_id=%d\n", __FUNCTION__, __LINE__, job_id);
 			if ((a->my_jobs[job_id].cgminer_work)) {
 				if (a->my_jobs[job_id].merkle_root == work->mrkle_root) {
 					assert(a->my_jobs[job_id].state == SPONDWORK_STATE_IN_BUSY);
@@ -585,14 +583,11 @@ static int64_t spond_scanhash(struct thr_info *thr)
 #else
 							ok = submit_noffset_nonce(cg_work->thr, cg_work, work->winner_nonce[j], work->ntime_offset);
 #endif
-							fprintf(stderr, "OK on %d:%d = %d\n",work->work_id_in_sw,j, ok);
 							a->wins++;
 						}
 					}
-					fprintf(stderr, "%d ntime_clones = %d\n",job_id,a->my_jobs[job_id].ntime_clones);
 					if ((--a->my_jobs[job_id].ntime_clones) == 0) {
 						--a->my_jobs[job_id].cgminer_work->subid;
-						fprintf(stderr, "Done with %d\n", job_id);
 						check_release(a->cgpu, a->my_jobs[job_id].cgminer_work);
 						a->good++;
 						a->my_jobs[job_id].cgminer_work = NULL;
@@ -600,12 +595,11 @@ static int64_t spond_scanhash(struct thr_info *thr)
 					}
 				} else {
 					a->bad++;
-					fprintf(stderr, "Dropping minergate old job id=%d mrkl=%x my-mrkl=%x\n",
-					       job_id, a->my_jobs[job_id].merkle_root, work->mrkle_root);
+					printf("Dropping minergate old job id=%d mrkl=%x my-mrkl=%x\n", job_id, a->my_jobs[job_id].merkle_root, work->mrkle_root);
 				}
 			} else {
 				a->empty++;
-				fprintf(stderr, "No cgminer job (id:%d res:%d)!\n",job_id, work->res);
+				printf("No cgminer job (id:%d res:%d)!\n",job_id, work->res);
 			}
 		}
 		mutex_unlock(&a->lock);
@@ -614,7 +608,6 @@ static int64_t spond_scanhash(struct thr_info *thr)
 	}
 	cgsleep_ms_r(&cgt, 40);
 
-	fprintf(stderr, "%s, %s, %d:\n", __FILE__, __FUNCTION__, __LINE__);
 	return ghashes;
 }
 

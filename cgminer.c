@@ -7260,7 +7260,8 @@ static void submit_work_async(struct work *work)
 
 void inc_hw_errors(struct thr_info *thr)
 {
-	applog(LOG_INFO, "%s%d: invalid nonce - HW error", thr->cgpu->drv->name,
+	// TEMP TODO TEMP TODO removing this printout as we are using simulator that returns an invalid result of course
+	if (0) applog(LOG_INFO, "%s%d: invalid nonce - HW error", thr->cgpu->drv->name,
 	       thr->cgpu->device_id);
 
 	mutex_lock(&stats_lock);
