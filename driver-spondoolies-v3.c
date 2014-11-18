@@ -130,7 +130,31 @@ static void fill_minergate_request(minergate_do_job_req* work, struct thr_info *
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
     struct pool *pool = current_pool();
-    // TODO: fill message
+	uint64_t difficulty_64bit = round(pool->sdiff);
+    /*
+     * fill the job work
+     */
+	memset(work, 0, sizeof(minergate_do_job_req));
+	work->work_id_in_sw = 0; // TODO: not sure we really need it
+	work->difficulty = 0; // TODO: not sure we really need it
+	work->timestamp = 0; // TODO: not sure we really need it
+    /*
+     * leading zeros strange logic, taken from previous ??
+     */
+	work->leading_zeroes = 30;
+	while (difficulty_64bit) {
+		work->leading_zeroes++;
+		difficulty_64bit = difficulty_64bit >> 1;
+	}
+	work->ntime_limit = 0; //? not sure we need it
+	work->ntime_offset = 0; //? not sure we need it
+	work->resr1 = 0;
+	work->coinbase_len = pool->coinbase_len;
+	memcpy(work->coinbase, pool->coinbase, work->coinbase_len);
+	work->nonce2_offset = pool->nonce2_offset;
+	work->merkles = pool->merkles;
+    // each merkle is 32 bytes size
+	memcpy(work->merkle, pool->merklebin, (work->merkles<<5));
 }
 
 static void polling(struct thr_info *thr)
