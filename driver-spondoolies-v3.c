@@ -125,36 +125,36 @@ static bool spondoolies_prepare(struct thr_info *thr)
     return true;
 }
 
-static void fill_minergate_request(minergate_do_job_req* work, struct thr_info *thr)
+static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *thr)
 {
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
     struct pool *pool = current_pool();
-	uint64_t difficulty_64bit = round(pool->sdiff);
+    uint64_t difficulty_64bit = round(pool->sdiff);
     /*
-     * fill the job work
+     * fill the job
      */
-	memset(work, 0, sizeof(minergate_do_job_req));
-	work->work_id_in_sw = 0; // TODO: not sure we really need it
-	work->difficulty = 0; // TODO: not sure we really need it
-	work->timestamp = 0; // TODO: not sure we really need it
+    memset(job, 0, sizeof(minergate_do_job_req));
+    job->work_id_in_sw = 0; // TODO: not sure we really need it
+    job->difficulty = 0; // TODO: not sure we really need it
+    job->timestamp = 0; // TODO: not sure we really need it
     /*
      * leading zeros strange logic, taken from previous ??
      */
-	work->leading_zeroes = 30;
-	while (difficulty_64bit) {
-		work->leading_zeroes++;
-		difficulty_64bit = difficulty_64bit >> 1;
-	}
-	work->ntime_limit = 0; //? not sure we need it
-	work->ntime_offset = 0; //? not sure we need it
-	work->resr1 = 0;
-	work->coinbase_len = pool->coinbase_len;
-	memcpy(work->coinbase, pool->coinbase, work->coinbase_len);
-	work->nonce2_offset = pool->nonce2_offset;
-	work->merkles = pool->merkles;
+    job->leading_zeroes = 30;
+    while (difficulty_64bit) {
+        job->leading_zeroes++;
+        difficulty_64bit = difficulty_64bit >> 1;
+    }
+    job->ntime_limit = 0; //? not sure we need it
+    job->ntime_offset = 0; //? not sure we need it
+    job->resr1 = 0;
+    job->coinbase_len = pool->coinbase_len;
+    memcpy(job->coinbase, pool->coinbase, job->coinbase_len);
+    job->nonce2_offset = pool->nonce2_offset;
+    job->merkles = pool->merkles;
     // each merkle is 32 bytes size
-	memcpy(work->merkle, pool->merklebin, (work->merkles<<5));
+    memcpy(job->merkle, pool->merklebin, (job->merkles<<5));
 }
 
 static void polling(struct thr_info *thr)
@@ -202,7 +202,12 @@ static int64_t spond_scanhash(struct thr_info *thr)
                     SPOND_MAX_MERKLES);
             return 0;
         }
-        // TODO: fill job and send it to miner
+        /*
+         * fill job and send it to miner
+         */
+        minergate_do_job_req job;
+        fill_minergate_request(&job, thr);
+        do_write(device->socket_fd, &job, sizeof(job));
     }
     polling(thr);
     // TODO: return wins number
@@ -216,9 +221,7 @@ static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
 static void spond_flush_work(struct cgpu_info *cgpu)
 {
     struct spond_adapter *device = cgpu->device_data;
-    mutex_lock(&device->lock);
-    device->reset_mg_queue = 3;
-    mutex_unlock(&device->lock);
+    // TODO: we may not need this function
 }
 
 struct device_drv spondooliesv3_drv = {
