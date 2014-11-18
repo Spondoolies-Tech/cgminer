@@ -6891,7 +6891,7 @@ void set_target(unsigned char *dest_target, double diff)
 	memcpy(dest_target, target, 32);
 }
 
-#ifdef USE_AVALON2
+#if defined(USE_AVALON2) || defined(USE_SPONDOOLIES_V3)
 void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint32_t nonce2, uint32_t nonce)
 {
 	struct cgpu_info *cgpu = thr->cgpu;
@@ -7862,13 +7862,13 @@ void hash_driver_work(struct thr_info *mythr)
 		struct timeval diff;
 		int64_t hashes;
 
-#ifndef USE_AVALON2
+#if !(defined(USE_AVALON2) || defined(USE_SPONDOOLIES_V3))
 		mythr->work_update = false;
 #endif
 
 		hashes = drv->scanwork(mythr);
 
-#ifndef USE_AVALON2
+#if !(defined(USE_AVALON2) || defined(USE_SPONDOOLIES_V3))
 		/* Reset the bool here in case the driver looks for it
 		 * synchronously in the scanwork loop. */
 		mythr->work_restart = false;

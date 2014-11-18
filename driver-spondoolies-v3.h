@@ -1,6 +1,7 @@
 /*
  * Copyright 2014 Con Kolivas <kernel@kolivas.org>
  * Copyright 2014 Zvi Shteingart - Spondoolies-tech.com
+ * Copyright 2014 Dmitry (Dima) Kuzminov - Spondoolies-tech.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -12,7 +13,7 @@
 #define SPONDA_HFILE
 
 #include "miner.h"
-#include "mg_proto_parser.h"
+#include "mg_proto_parser-v3.h"
 
 #define SP_NTIME
 
@@ -42,7 +43,6 @@ struct spond_adapter {
 	pthread_mutex_t lock;
 	ADAPTER_STATE adapter_state;
 	void *cgpu;
-
 	// Statistics
 	int wins;
 	int good;
@@ -60,17 +60,12 @@ struct spond_adapter {
 	minergate_req_packet* mp_next_req;
 	minergate_rsp_packet* mp_last_rsp;
 	spond_driver_work my_jobs[MAX_JOBS_IN_MINERGATE];
-
 	// Temperature statistics
 	int temp_rate;
 	int rear_temp;
 	int front_temp;
-
 	// Last second we polled stats
 	time_t last_stats;
-
-	// Nonce2 scanner
-	int nonce2_fd;
 };
 
 // returns non-zero if needs to change ASICs.
