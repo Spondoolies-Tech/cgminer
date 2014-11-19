@@ -94,10 +94,6 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
     device->cgpu = (void *)cgpu;
     // TODO: ??
     device->adapter_state = ADAPTER_STATE_OPERATIONAL;
-    // TODO: ??
-    device->mp_next_req = allocate_minergate_packet_req_v3(0xca, 0xfe);
-    // TODO: ??
-    device->mp_last_rsp = allocate_minergate_packet_rsp_v3(0xca, 0xfe);
     pthread_mutex_init(&device->lock, NULL);
     device->socket_fd = init_socket();
     if (device->socket_fd < 1) {
@@ -191,8 +187,9 @@ static int64_t spond_scanhash(struct thr_info *thr)
             quit(1, "%s: Miner Manager have to use stratum pool", spondooliesv3_drv.dname);
         }
         if (pool->coinbase_len > SPOND_MAX_COINBASE_LEN) {
-            applog(LOG_ERR, "%s: Miner Manager pool coinbase length have to less then %d",
+            applog(LOG_ERR, "%s: Miner Manager pool coinbase length[%d] have to less then %d",
                     spondooliesv3_drv.dname,
+                    pool->coinbase_len,
                     SPOND_MAX_COINBASE_LEN);
             return 0;
         }
@@ -205,9 +202,45 @@ static int64_t spond_scanhash(struct thr_info *thr)
         /*
          * fill job and send it to miner
          */
-        minergate_do_job_req job;
-        fill_minergate_request(&job, thr);
-        do_write(device->socket_fd, &job, sizeof(job));
+        minergate_req_packet req_packet;
+        memset(&req_packet, 0, sizeof(req_packet));
+        req_packet.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
+        req_packet.header.message_type = MINERGATE_MESSAGE_TYPE_JOB_REQ;
+        req_packet.header.message_size = sizeof(req_packet)-sizeof(req_packet.header);
+        // TODO: use or remove
+        req_packet.requester_id = 0;
+        // TODO: use or remove
+        req_packet.request_id = 0;
+        // TODO: use MACRO
+        req_packet.mask = 0x01; // 0x01 = first request, 0x2 = drop old work
+        req_packet.req_count = 1; // one job only
+        // currently we will send only one job
+        fill_minergate_request(&req_packet.req[0], thr);
+        do_write(device->socket_fd, &req_packet, sizeof(req_packet));
+        /*
+         * read the response from miner
+         */
+        minergate_gen_packet rsp_packet;
+        uint32_t size = 0;
+        if ((size = do_read_packet(device->socket_fd, &rsp_packet, sizeof(rsp_packet))) != sizeof(rsp_packet)) {
+            quit(1, "%s: critical error, packet sent from miner is bad received size[%u] expected [%u], quiting...",
+                    spondooliesv3_drv.dname,
+                    size,
+                    sizeof(rsp_packet)
+                    );
+            return 0;
+        }
+        switch (rsp_packet.header.message_type) {
+            case MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK:
+                applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK", spondooliesv3_drv.dname);
+                break;
+            case MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ:
+                applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ", spondooliesv3_drv.dname);
+                break;
+            default:
+                applog(LOG_ERR, "%s unexpected type[%x]", spondooliesv3_drv.dname, rsp_packet.header.message_type);
+                return 0;
+        }
     }
     polling(thr);
     // TODO: return wins number

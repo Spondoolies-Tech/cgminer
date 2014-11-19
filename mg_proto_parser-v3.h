@@ -26,16 +26,20 @@
 #define passert assert
 #endif
 
-#define MINERGATE_PROTOCOL_VERSION 6
+#define MINERGATE_PROTOCOL_VERSION_MINOR 1
+#define MINERGATE_PROTOCOL_VERSION_MAJOR 6
+#define MINERGATE_PROTOCOL_VERSION       ((MINERGATE_PROTOCOL_VERSION_MAJOR<<8)|(MINERGATE_PROTOCOL_VERSION_MINOR))
+
 #define MINERGATE_SOCKET_FILE "/tmp/connection_pipe"
 
 typedef enum {
-	MINERGATE_DATA_ID_UNDEFINED = 0,
-	MINERGATE_DATA_ID_CONNECT = 1,
-	MINERGATE_DATA_ID_DO_JOB_REQ = 2,
-	MINERGATE_DATA_ID_DO_JOB_RSP = 3, 
-    MINERGATE_DATA_IDS
-} MINERGATE_DATA_ID;
+    MINERGATE_MESSAGE_TYPE_CONNECT      = 0xCAFE1111,
+    MINERGATE_MESSAGE_TYPE_JOB_REQ      = 0xCAFE2222,
+    MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ  = 0xCAFE3333,
+    MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK  = 0xCAFE4444,
+    MINERGATE_MESSAGE_TYPE_RSP_REQ      = 0xCAFE5555,
+    MINERGATE_MESSAGE_TYPE_RSP_DAT      = 0xCAFE6666
+} MINERGATE_MESSAGE_TYPE;
 
 #define SPOND_MAX_COINBASE_LEN      1024
 #define SPOND_MAX_MERKLE_LEN        1024
@@ -73,24 +77,34 @@ typedef struct {
 } minergate_do_job_rsp;
 
 typedef struct {
+    uint32_t                message_type;
+    uint32_t                message_size;
+	uint16_t                protocol_version;
+} minergate_packet_header;
+
+typedef struct {
+    minergate_packet_header header;
+	uint16_t                protocol_version;
 	uint8_t                 requester_id;
 	uint8_t                 request_id;
-	uint8_t                 protocol_version;
 	uint8_t                 mask; // 0x01 = first request, 0x2 = drop old work
-	uint16_t                magic; // 0xcafe
 	uint16_t                req_count;
 	minergate_do_job_req    req[MAX_REQUESTS]; // array of requests
 } minergate_req_packet;
 
 typedef struct {
-	uint8_t requester_id;
-	uint8_t request_id;
-	uint8_t protocol_version;
-	uint8_t gh_div_10_rate; // == 
-	uint16_t magic; // 0xcafe
-	uint16_t rsp_count;
-	minergate_do_job_rsp rsp[MAX_RESPONDS]; // array of responce
+    minergate_packet_header header;
+	uint8_t                 requester_id;
+	uint8_t                 request_id;
+	uint8_t                 gh_div_10_rate; // == 
+	uint16_t                rsp_count;
+	minergate_do_job_rsp    rsp[MAX_RESPONDS]; // array of responce
 } minergate_rsp_packet;
+
+typedef struct {
+    minergate_packet_header header;
+    uint8_t                 rsv[4];
+} minergate_gen_packet;
 
 minergate_req_packet *allocate_minergate_packet_req_v3(uint8_t requester_id, uint8_t request_id);
 minergate_rsp_packet *allocate_minergate_packet_rsp_v3(uint8_t requester_id, uint8_t request_id);
@@ -98,6 +112,7 @@ minergate_rsp_packet *allocate_minergate_packet_rsp_v3(uint8_t requester_id, uin
 #define SPON_V3_SETWORK	0x1
 #define SPON_V3_GETNONCE2S 0x2
 
-int do_read(int s, void *p, int len);
-int do_write(int s, const void *p, int len);
+int do_read(int fd, void *buf, int len);
+int do_write(int fd, const void *buf, int len);
+int do_read_packet(int fd, void* buf, int len);
 #endif
