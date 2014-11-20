@@ -43,6 +43,11 @@
 #include "mg_proto_parser-v3.h"
 #include "driver-spondoolies-v3.h"
 
+static uint32_t bytes_to_32_flip(uint8_t* bytes) {
+    uint32_t res = (bytes[0]<<24)|(bytes[1]<<16)|(bytes[2]<<8)|(bytes[3]);
+    return htonl(res);
+}
+
 static struct api_data *spondoolies_api_stats(struct cgpu_info *cgpu)
 {
     struct spond_adapter *device = cgpu->device_data;
@@ -131,9 +136,10 @@ static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *t
      * fill the job
      */
     memset(job, 0, sizeof(minergate_do_job_req));
-    job->work_id_in_sw = 0; // TODO: not sure we really need it
-    job->difficulty = 0; // TODO: not sure we really need it
-    job->timestamp = 0; // TODO: not sure we really need it
+    job->work_id_in_sw = pool->pool_no; // pool job id
+    job->difficulty = pool->gbt_bits; // TODO: we may need to swap bytes
+    job->timestamp = pool->curtime; // TODO: we may need to swap bytes
+    job->mrkle_root = bytes_to_32_flip(&pool->previousblockhash[24]); // TODO: we may need to swap bytes
     /*
      * leading zeros strange logic, taken from previous ??
      */

@@ -54,6 +54,7 @@ typedef struct {
 	uint8_t  ntime_limit; //? not sure we need it
 	uint8_t  ntime_offset; //? not sure we need it
 	uint8_t  resr1;
+    uint32_t mrkle_root;
 	uint32_t coinbase_len;
 	uint8_t  coinbase[SPOND_MAX_COINBASE_LEN];
 	uint32_t nonce2_offset;
