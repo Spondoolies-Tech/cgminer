@@ -6892,7 +6892,7 @@ void set_target(unsigned char *dest_target, double diff)
 }
 
 #if defined(USE_AVALON2) || defined(USE_SPONDOOLIES_V3)
-void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint32_t nonce2, uint32_t nonce)
+void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint64_t nonce2, uint32_t nonce)
 {
 	struct cgpu_info *cgpu = thr->cgpu;
 	struct device_drv *drv = cgpu->drv;
@@ -7346,8 +7346,10 @@ bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
 	if (test_nonce(work, nonce)) {
 		submit_tested_work(thr, work);
+		applog(LOG_ERR, "Good Win!!");
 	} else {
 		inc_hw_errors(thr);
+		applog(LOG_ERR, "bad Win!!");
 		return false;
 	}
 	if (opt_benchfile && opt_benchfile_display)

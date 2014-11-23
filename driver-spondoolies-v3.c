@@ -43,9 +43,40 @@
 #include "mg_proto_parser-v3.h"
 #include "driver-spondoolies-v3.h"
 
+extern void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint64_t nonce2, uint32_t nonce);
+
 static uint32_t bytes_to_32_flip(uint8_t* bytes) {
-    uint32_t res = (bytes[0]<<24)|(bytes[1]<<16)|(bytes[2]<<8)|(bytes[3]);
-    return htonl(res);
+    uint32_t res =
+        (bytes[0]<<24)|
+        (bytes[1]<<16)|
+        (bytes[2]<<8)|
+        (bytes[3]);
+    return htobe32(res);
+}
+
+static uint64_t bytes_to_64_flip(uint8_t* bytes) {
+    uint64_t res = 
+        ((uint64_t)bytes[0]<<56)|
+        ((uint64_t)bytes[1]<<48)|
+        ((uint64_t)bytes[2]<<40)|
+        ((uint64_t)bytes[3]<<32)|
+        ((uint64_t)bytes[4]<<24)|
+        ((uint64_t)bytes[5]<<16)|
+        ((uint64_t)bytes[6]<<8)|
+        ((uint64_t)bytes[7]);
+    return htobe64(res);
+}
+
+static char* print_hex(char* dst, int size_of_dist, void* src, int size_of_src) {
+    char *pos = dst;
+    uint8_t* src_bytes = (uint8_t*) src;
+    uint8_t elements = size_of_src < (size_of_dist/3) ? size_of_src : (size_of_dist/3);
+    int i;
+    for (i = 0; i < elements; ++i) {
+        sprintf(pos, "%02x:", src_bytes[i]);
+        pos += 3;
+    }
+    return dst;
 }
 
 static struct api_data *spondoolies_api_stats(struct cgpu_info *cgpu)
@@ -126,11 +157,10 @@ static bool spondoolies_prepare(struct thr_info *thr)
     return true;
 }
 
-static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *thr)
+static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *thr, struct pool *pool)
 {
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
-    struct pool *pool = current_pool();
     uint64_t difficulty_64bit = round(pool->sdiff);
     /*
      * fill the job
@@ -157,20 +187,109 @@ static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *t
     job->merkles = pool->merkles;
     // each merkle is 32 bytes size
     memcpy(job->merkle, pool->merklebin, (job->merkles<<5));
+    // TODO: please remove me
+    applog(LOG_ERR, "%s %s work_id_in_sw[0x%x] difficulty[0x%x] timestamp[0x%x] leading_zeros[%d] mrkle_root[0x%08x]",
+            spondooliesv3_drv.dname,
+            __FUNCTION__,
+            job->work_id_in_sw,
+            job->difficulty,
+            job->timestamp,
+            job->leading_zeroes,
+            job->mrkle_root
+          );
+    applog(LOG_ERR, "%s %s coinbase_len[%d] nonce2_offset[0x%x] merkles[%d]",
+            spondooliesv3_drv.dname,
+            __FUNCTION__,
+            job->coinbase_len,
+            job->nonce2_offset,
+            job->merkles
+          );
+    char buffer[1024];
+    applog(LOG_ERR, "%s %s prev_hash[%s]",
+            spondooliesv3_drv.dname,
+            __FUNCTION__,
+            print_hex(buffer, sizeof(buffer), pool->previousblockhash, sizeof(pool->previousblockhash))
+          );
 }
 
-static void polling(struct thr_info *thr)
+static int polling_and_return_number_of_wins(struct thr_info *thr)
 {
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
-    // TODO: request wins from miner
+    /*
+     * send request to miner gateway to get wins results
+     */
+    minergate_gen_packet req_rsp;
+    req_rsp.header.message_type = MINERGATE_MESSAGE_TYPE_RSP_REQ;
+    req_rsp.header.message_size = sizeof(req_rsp)-sizeof(req_rsp.header);
+    req_rsp.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
+    do_write(device->socket_fd, &req_rsp, sizeof(req_rsp)); 
+    /* 
+     * read result
+     */
+    // OK, since we don't know message size, lets take biggest
+    void *message = calloc(1, sizeof(minergate_rsp_packet));
+    int size =  do_read_packet(device->socket_fd, message, sizeof(minergate_rsp_packet));
+    if (size == 0) {
+        quit(1, "%s: Ooops returned bad packet from cgminer", spondooliesv3_drv.dname);
+        free(message);
+        return 0;
+    }
+    // lets check the header
+    minergate_packet_header *header = (minergate_packet_header*) message;
+    switch (header->message_type) {
+        case MINERGATE_MESSAGE_TYPE_RSP_NODATA:
+            {
+                free(message);
+                return 0;
+            }
+        case MINERGATE_MESSAGE_TYPE_RSP_DATA:
+            {
+                int i;
+                minergate_rsp_packet *rsp = (minergate_rsp_packet*) message;
+                // TODO: what to do with:
+                //       rsp->requester_id
+                //       rsp->request_id
+                //       rsp->gh_div_10_rate
+                int results = rsp->rsp_count;
+                for (i = 0; i < results; ++i) {
+#if 1
+                    submit_nonce2_nonce(
+                            thr,
+                            rsp->rsp[i].work_id_in_sw           /*pool_no*/,
+                            bytes_to_64_flip(rsp->rsp[i].enonce)/*nonce2*/,
+                            rsp->rsp[i].winner_nonce[0]         /*nonce*/);
+#endif
+                    char buffer[1024];
+                    applog(LOG_ERR, "%s: win [%d/%d] pool_no [%08x] enonce_orig[%s] enonce[%016llx] nonce [%08x]",
+                            spondooliesv3_drv.dname,
+                            i,
+                            results,
+                            rsp->rsp[i].work_id_in_sw           /*pool_no*/,
+                            print_hex(buffer, sizeof(buffer), rsp->rsp[i].enonce, sizeof(rsp->rsp[i].enonce)),
+                            bytes_to_64_flip(rsp->rsp[i].enonce)/*nonce2*/,
+                            rsp->rsp[i].winner_nonce[0]         /*nonce*/);
+                }
+                free(message);
+                return results;
+            };
+        default:
+            {
+                applog(LOG_ERR, "%s: Ooops returned un expected message type [%08x]",
+                        spondooliesv3_drv.dname,
+                        header->message_type);
+                free(message);
+                return 0;
+            }
+    }
+    return 0;
 }
 
 static int64_t spond_scanhash(struct thr_info *thr)
 {
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
-    struct pool *pool = current_pool();
+    struct pool *pool = NULL;//current_pool();
     if (thr->work_restart || thr->work_update) {
         applog(LOG_DEBUG, "%s: restart: %d, update: %d",
                 spondooliesv3_drv.dname,
@@ -185,7 +304,8 @@ static int64_t spond_scanhash(struct thr_info *thr)
          * Make sure pool is ready, get_work is blocking funciton
          * and never returns NULL
          */
-        get_work(thr, thr->id);
+        struct work *work = get_work(thr, thr->id);
+        pool = work->pool;
         /*
          * check that pool request is correct
          */
@@ -221,7 +341,9 @@ static int64_t spond_scanhash(struct thr_info *thr)
         req_packet.mask = 0x01; // 0x01 = first request, 0x2 = drop old work
         req_packet.req_count = 1; // one job only
         // currently we will send only one job
-        fill_minergate_request(&req_packet.req[0], thr);
+		cg_wlock(&pool->data_lock);
+        fill_minergate_request(&req_packet.req[0], thr, pool);
+		cg_wunlock(&pool->data_lock);
         do_write(device->socket_fd, &req_packet, sizeof(req_packet));
         /*
          * read the response from miner
@@ -248,9 +370,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
                 return 0;
         }
     }
-    polling(thr);
-    // TODO: return wins number
-    return 0;
+    return polling_and_return_number_of_wins(thr);
 }
 
 static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
