@@ -43,40 +43,91 @@
 #include "mg_proto_parser-v3.h"
 #include "driver-spondoolies-v3.h"
 
+#ifdef WORDS_BIGENDIAN
+#  define swap32tobe(out, in, sz)  ((out == in) ? (void)0 : memmove(out, in, sz))
+#  define LOCAL_swap32be(type, var, sz)  ;
+#  define swap32tole(out, in, sz)  swap32yes(out, in, sz)
+#  define LOCAL_swap32le(type, var, sz)  LOCAL_swap32(type, var, sz)
+#else
+#  define swap32tobe(out, in, sz)  swap32yes(out, in, sz)
+#  define LOCAL_swap32be(type, var, sz)  LOCAL_swap32(type, var, sz)
+#  define swap32tole(out, in, sz)  ((out == in) ? (void)0 : memmove(out, in, sz))
+#  define LOCAL_swap32le(type, var, sz)  ;
+#endif
+
+static char *print_binary(unsigned char *data, int len, char *print_area)
+{
+	char *p = print_area;
+	int n;
+	for (n = 0; n < len; ++n) {
+		sprintf(p, "%02x", data[n]);
+		p += 2;
+		if (((n + 1) % 4) == 0 && n != len - 1) {
+			sprintf(p++, "-");
+		}
+	}
+	return print_area;
+}
+
+static char *print_binary_flip(unsigned char *dataIn, int lenIn, char *print_area)
+{
+	int len = ((lenIn - 1) / 4 + 1) * 4;
+	uint8_t data[len];
+	memset(data, 0, len);
+	memcpy(data, dataIn, lenIn);
+	uint32_t *d = (uint32_t*)data;
+	int i, n;
+	for (i = 0; i < len / 4; ++i) {
+		d[i] = htonl(d[i]);
+	}
+
+	char *p = print_area;
+	for (n = 0; n < len; ++n) {
+		sprintf(p, "%02x", data[n]);
+		p += 2;
+		if (((n + 1) % 4) == 0 && n != len - 1) {
+			sprintf(p++, "-");
+		}
+	}
+	return print_area;
+}
+
+static inline void swap32yes(void *out, const void *in, size_t sz)
+{
+	size_t swapcounter;
+
+	for (swapcounter = 0; swapcounter < sz; ++swapcounter)
+		(((uint32_t*)out)[swapcounter]) = swab32(((uint32_t*)in)[swapcounter]);
+}
+
 extern void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint64_t nonce2, uint32_t nonce);
-
-static uint32_t bytes_to_32_flip(uint8_t* bytes) {
-    uint32_t res =
-        (bytes[0]<<24)|
-        (bytes[1]<<16)|
-        (bytes[2]<<8)|
-        (bytes[3]);
-    return htobe32(res);
-}
-
-static uint64_t bytes_to_64_flip(uint8_t* bytes) {
-    uint64_t res = 
-        ((uint64_t)bytes[0]<<56)|
-        ((uint64_t)bytes[1]<<48)|
-        ((uint64_t)bytes[2]<<40)|
-        ((uint64_t)bytes[3]<<32)|
-        ((uint64_t)bytes[4]<<24)|
-        ((uint64_t)bytes[5]<<16)|
-        ((uint64_t)bytes[6]<<8)|
-        ((uint64_t)bytes[7]);
-    return htobe64(res);
-}
 
 static char* print_hex(char* dst, int size_of_dist, void* src, int size_of_src) {
     char *pos = dst;
     uint8_t* src_bytes = (uint8_t*) src;
-    uint8_t elements = size_of_src < (size_of_dist/3) ? size_of_src : (size_of_dist/3);
+    int elements = size_of_src < (size_of_dist/3) ? size_of_src : (size_of_dist/3);
     int i;
     for (i = 0; i < elements; ++i) {
         sprintf(pos, "%02x:", src_bytes[i]);
         pos += 3;
     }
     return dst;
+}
+
+static int spond_get_free_job_container_id(struct spond_adapter *device)
+{
+    int i = 0;
+    for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
+        if (device->my_jobs[i].cgminer_work == NULL) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static struct work* spond_get_work__by_job_id(struct spond_adapter *device, int my_job_id)
+{
+    return device->my_jobs[my_job_id].cgminer_work;
 }
 
 static struct api_data *spondoolies_api_stats(struct cgpu_info *cgpu)
@@ -120,6 +171,9 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
     struct cgpu_info *cgpu = calloc(1, sizeof(struct cgpu_info));
     struct device_drv *drv = &spondooliesv3_drv;
     struct spond_adapter *device;
+#ifdef WORDS_BIGENDIAN
+    quit(1, "Odnako WORDS_BIGENDIAN");
+#endif
     assert(cgpu);
     cgpu->drv = drv;
     cgpu->deven = DEV_ENABLED;
@@ -157,19 +211,31 @@ static bool spondoolies_prepare(struct thr_info *thr)
     return true;
 }
 
-static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *thr, struct pool *pool)
+static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *thr, int my_job_id)
 {
+    int i;
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
+    struct pool *pool = device->my_jobs[my_job_id].cgminer_work->pool;
     uint64_t difficulty_64bit = round(pool->sdiff);
     /*
      * fill the job
      */
     memset(job, 0, sizeof(minergate_do_job_req));
-    job->work_id_in_sw = pool->pool_no; // pool job id
-    job->difficulty = pool->gbt_bits; // TODO: we may need to swap bytes
-    job->timestamp = pool->curtime; // TODO: we may need to swap bytes
-    job->mrkle_root = bytes_to_32_flip(&pool->previousblockhash[24]); // TODO: we may need to swap bytes
+    job->work_id_in_sw = my_job_id;
+    uint8_t bytes[8]; // ntime 32 bit, nbits 32 bit  
+    memcpy(
+            bytes,
+            pool->header_bin + 4 /*bbversion*/ + 32 /*prev_hash*/ + 32 /*blank_merkle*/,
+            4 /*ntime*/ + 4 /*nbits*/
+            );
+	LOCAL_swap32le(uint8_t, bytes, 2)
+	uint32_t converted[2];
+	swap32yes(converted, bytes, 2);
+	job->timestamp  = ntohl(converted[0]);
+	job->difficulty = ntohl(converted[1]);
+    job->mrkle_root = 0; // TODO: looks like wrong place for this variable
+    memcpy(job->header_bin, pool->header_bin, sizeof(job->header_bin));
     /*
      * leading zeros strange logic, taken from previous ??
      */
@@ -186,7 +252,17 @@ static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *t
     job->nonce2_offset = pool->nonce2_offset;
     job->merkles = pool->merkles;
     // each merkle is 32 bytes size
-    memcpy(job->merkle, pool->merklebin, (job->merkles<<5));
+	for (i = 0; i < pool->merkles; ++i) {
+		memcpy(job->merkle + 32 * i, pool->swork.merkle_bin[i], 32);
+	}
+#if 1 //TODO: remove me
+    {
+        char p[1024];
+        for (i = 0; i < job->merkles; ++i) {
+            printf("%s, %d:### merkle-bin=%s\n", __FUNCTION__, __LINE__, print_binary(job->merkle + i * 32, 32, p));
+        }
+    }
+#endif
     // TODO: please remove me
     applog(LOG_ERR, "%s %s work_id_in_sw[0x%x] difficulty[0x%x] timestamp[0x%x] leading_zeros[%d] mrkle_root[0x%08x]",
             spondooliesv3_drv.dname,
@@ -197,18 +273,17 @@ static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *t
             job->leading_zeroes,
             job->mrkle_root
           );
-    applog(LOG_ERR, "%s %s coinbase_len[%d] nonce2_offset[0x%x] merkles[%d]",
+    applog(LOG_ERR, "%s %s coinbase_len[%d] nonce2_offset[0x%x] merkles[%d] n2size[%d]",
             spondooliesv3_drv.dname,
             __FUNCTION__,
             job->coinbase_len,
             job->nonce2_offset,
-            job->merkles
+            job->merkles,
+            pool->n2size
           );
-    char buffer[1024];
-    applog(LOG_ERR, "%s %s prev_hash[%s]",
-            spondooliesv3_drv.dname,
-            __FUNCTION__,
-            print_hex(buffer, sizeof(buffer), pool->previousblockhash, sizeof(pool->previousblockhash))
+    char buffer[4096];
+    printf("pool->header_bin[%s]",
+            print_hex(buffer, sizeof(buffer), pool->header_bin, sizeof(pool->header_bin))
           );
 }
 
@@ -246,6 +321,7 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
         case MINERGATE_MESSAGE_TYPE_RSP_DATA:
             {
                 int i;
+                int j;
                 minergate_rsp_packet *rsp = (minergate_rsp_packet*) message;
                 // TODO: what to do with:
                 //       rsp->requester_id
@@ -254,20 +330,86 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                 int results = rsp->rsp_count;
                 for (i = 0; i < results; ++i) {
 #if 1
+                    // calculate midstate if win
+                    static char p[2048];
+                    struct work *work = spond_get_work__by_job_id(device, rsp->rsp[i].work_id_in_sw);
+
+                    uint8_t coinbase[work->coinbase_len];
+                    memcpy(coinbase, work->coinbase, work->coinbase_len);
+                    *(uint64_t *)(coinbase + work->nonce2_offset) = htole64((rsp->rsp[i].enonce[0])|((uint64_t)rsp->rsp[i].chip_id<<32));
+                    printf("%s, %d: coinbase=%s\n", __FUNCTION__, __LINE__, print_binary(coinbase, work->coinbase_len, p));
+                    work->nonce2 = htole64((rsp->rsp[i].enonce[0])|((uint64_t)rsp->rsp[i].chip_id<<32));
+
+                    uint8_t merkle_root[32];
+                    gen_hash(coinbase, merkle_root, work->coinbase_len);
+                    printf("%s, %d: coinbase=%s\n", __FUNCTION__, __LINE__, print_binary(coinbase, work->coinbase_len, p));
+
+                    uint8_t merkle_sha[64];
+                    for (j = 0; j < work->merkles; ++j) {
+                        memcpy(merkle_sha, merkle_root, 32);
+                        memcpy(merkle_sha + 32, work->merklebin + j * 32, 32);
+                        gen_hash(merkle_sha, merkle_root, 64);
+                        printf("%s, %d: merkle-bin=%s\n", __FUNCTION__, __LINE__, print_binary(work->merklebin + j * 32, 32, p));
+                        printf("%s, %d: merkle_root=%s\n", __FUNCTION__, __LINE__, print_binary_flip(merkle_root, 32, p + 1024));
+                    }
+                    uint8_t merkle_root_swapped[32];
+                    flip32(merkle_root_swapped, merkle_root);
+                    memcpy(work->data + 36, merkle_root_swapped, 32);
+                    printf("%s, %d: merkle_root=%s\n", __FUNCTION__, __LINE__, print_binary(merkle_root, 32, p));
+                    printf("%s, %d: merkle_root_swapped=%s\n", __FUNCTION__, __LINE__, print_binary(merkle_root_swapped, 32, p));
+                    printf("%s, %d: work_data=%s\n", __FUNCTION__, __LINE__, print_binary(work->data, 128, p));
+
+                    calc_midstate(work);
+
+                    printf("%s, %d: midstate=%s\n", __FUNCTION__, __LINE__, print_binary(work->midstate, 32, p));
+                    LOCAL_swap32le(unsigned char, work->midstate, 32/4);
+                    printf("%s, %d: midstate=%s\n", __FUNCTION__, __LINE__, print_binary(work->midstate, 32, p));
+#endif
+#if 1
+                    printf("#####################################################################################\n");
+                    printf("#####################################################################################\n");
+                    printf("#####################################################################################\n");
+                    printf("%s, %d: winner_nonce=%08x\n", __FUNCTION__, __LINE__, rsp->rsp[i].winner_nonce[0]);
+					submit_nonce(
+                            work->thr,
+                            work,
+                            ntohl(rsp->rsp[i].winner_nonce[0])
+                            );
+                    //quit(1, "ooof");
+                    printf("#####################################################################################\n");
+                    printf("#####################################################################################\n");
+                    printf("#####################################################################################\n");
+#else
                     submit_nonce2_nonce(
                             thr,
                             rsp->rsp[i].work_id_in_sw           /*pool_no*/,
-                            bytes_to_64_flip(rsp->rsp[i].enonce)/*nonce2*/,
+                            rsp->rsp[i].enonce[0]               /*nonce2*/,
                             rsp->rsp[i].winner_nonce[0]         /*nonce*/);
+                    submit_nonce2_nonce(
+                            thr,
+                            rsp->rsp[i].work_id_in_sw           /*pool_no*/,
+                            ntohl(rsp->rsp[i].enonce[0])               /*nonce2*/,
+                            rsp->rsp[i].winner_nonce[0]         /*nonce*/);
+                    submit_nonce2_nonce(
+                            thr,
+                            rsp->rsp[i].work_id_in_sw           /*pool_no*/,
+                            rsp->rsp[i].enonce[0]               /*nonce2*/,
+                            ntohl(rsp->rsp[i].winner_nonce[0])         /*nonce*/);
+                    submit_nonce2_nonce(
+                            thr,
+                            rsp->rsp[i].work_id_in_sw           /*pool_no*/,
+                            ntohl(rsp->rsp[i].enonce[0])               /*nonce2*/,
+                            ntohl(rsp->rsp[i].winner_nonce[0])         /*nonce*/);
+                    quit(1, "ooof");
 #endif
                     char buffer[1024];
-                    applog(LOG_ERR, "%s: win [%d/%d] pool_no [%08x] enonce_orig[%s] enonce[%016llx] nonce [%08x]",
+                    applog(LOG_ERR, "%s: win [%d/%d] pool_no [%08x] enonce_orig[%s] enonce[%08x] nonce [%08x]",
                             spondooliesv3_drv.dname,
                             i,
                             results,
                             rsp->rsp[i].work_id_in_sw           /*pool_no*/,
                             print_hex(buffer, sizeof(buffer), rsp->rsp[i].enonce, sizeof(rsp->rsp[i].enonce)),
-                            bytes_to_64_flip(rsp->rsp[i].enonce)/*nonce2*/,
+                            rsp->rsp[i].enonce                  /*nonce2*/,
                             rsp->rsp[i].winner_nonce[0]         /*nonce*/);
                 }
                 free(message);
@@ -290,7 +432,9 @@ static int64_t spond_scanhash(struct thr_info *thr)
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
     struct pool *pool = NULL;//current_pool();
+    struct work *work = NULL;
     if (thr->work_restart || thr->work_update) {
+        int id = -1;
         applog(LOG_DEBUG, "%s: restart: %d, update: %d",
                 spondooliesv3_drv.dname,
                 thr->work_restart,
@@ -304,8 +448,20 @@ static int64_t spond_scanhash(struct thr_info *thr)
          * Make sure pool is ready, get_work is blocking funciton
          * and never returns NULL
          */
-        struct work *work = get_work(thr, thr->id);
+        id = spond_get_free_job_container_id(device);
+        if (id <0) {
+            applog(LOG_ERR, "%s: no free container to handle the job", spondooliesv3_drv.dname);
+            return 0;
+        }
+        work = get_work(thr, thr->id);
+#if 1 // TODO: do we need it, checked for crash..??
+        work->thr = spondoolies->thr[0];
+        work->thr_id = spondoolies->thr[0]->id;
+        assert(work->thr);
+        work->subid = 0;
+#endif
         pool = work->pool;
+        device->my_jobs[id].cgminer_work = work;
         /*
          * check that pool request is correct
          */
@@ -328,6 +484,8 @@ static int64_t spond_scanhash(struct thr_info *thr)
         /*
          * fill job and send it to miner
          */
+        static char p[2048];
+        printf("%s, %d: coinbase=%s\n", __FUNCTION__, __LINE__, print_binary(pool->coinbase, pool->coinbase_len, p));
         minergate_req_packet req_packet;
         memset(&req_packet, 0, sizeof(req_packet));
         req_packet.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
@@ -342,7 +500,7 @@ static int64_t spond_scanhash(struct thr_info *thr)
         req_packet.req_count = 1; // one job only
         // currently we will send only one job
 		cg_wlock(&pool->data_lock);
-        fill_minergate_request(&req_packet.req[0], thr, pool);
+        fill_minergate_request(&req_packet.req[0], thr, id);
 		cg_wunlock(&pool->data_lock);
         do_write(device->socket_fd, &req_packet, sizeof(req_packet));
         /*

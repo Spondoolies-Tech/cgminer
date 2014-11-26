@@ -37,7 +37,7 @@ extern void _simplelog(int prio, const char *str, bool force);
 	if (opt_debug || prio != LOG_DEBUG) { \
 		if (use_syslog || opt_log_output || prio <= opt_log_level) { \
 			char tmp42[LOGBUFSIZ]; \
-			snprintf(tmp42, sizeof(tmp42), fmt, ##__VA_ARGS__); \
+			snprintf(tmp42, sizeof(tmp42), "[%s(%s:%d)]"fmt, __FUNCTION__, __FILE__, __LINE__, ##__VA_ARGS__); \
 			_applog(prio, tmp42, false); \
 		} \
 	} \

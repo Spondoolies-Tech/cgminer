@@ -1726,6 +1726,7 @@ static bool parse_notify(struct pool *pool, json_t *val)
 	if (!arr || !json_is_array(arr))
 		goto out;
 
+    applog(LOG_ERR, "################ %s:%d #######3", __FUNCTION__, __LINE__);
 	merkles = json_array_size(arr);
 
 	job_id = json_array_string(val, 0);
@@ -1795,6 +1796,15 @@ static bool parse_notify(struct pool *pool, json_t *val)
 #endif
 	snprintf(header, 225,
 		"%s%s%s%s%s%s%s",
+		pool->bbversion,
+		pool->prev_hash,
+		blank_merkle,
+		pool->ntime,
+		pool->nbit,
+		"00000000", /* nonce */
+		workpadding);
+	printf(
+		"pool->bbversion[%s] pool->prev_hash[%s] blank_merkle[%s] pool->ntime[%s] pool->nbit[%s] nonce[%s] workpadding[%s]\n",
 		pool->bbversion,
 		pool->prev_hash,
 		blank_merkle,
@@ -2532,6 +2542,7 @@ bool initiate_stratum(struct pool *pool)
 	json_error_t err;
 	int n2size;
 
+    applog(LOG_ERR, "################ %s:%d #######3", __FUNCTION__, __LINE__);
 resend:
 	if (!setup_stratum_socket(pool)) {
 		sockd = false;

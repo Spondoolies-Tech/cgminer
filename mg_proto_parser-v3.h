@@ -61,6 +61,9 @@ typedef struct {
 	uint32_t nonce2_offset;
 	uint32_t merkles;
 	uint8_t  merkle[SPOND_MAX_MERKLE_LEN];
+    uint8_t  header_bin[128]; // TODO: we clone data on pool header
+                              // it is duplicating data with difficulty
+                              // timestamp
 } minergate_do_job_req;
 
 #define MAX_REQUESTS 100
@@ -71,7 +74,8 @@ typedef struct {
 	uint32_t work_id_in_sw;
 	uint32_t mrkle_root;     // to validate
 	uint32_t winner_nonce[2];
-    uint8_t  enonce[8];      // winner enonce as well
+    uint32_t enonce[2];      // winner enonce as well
+	uint8_t  chip_id;
 	uint8_t  ntime_offset;
 	uint8_t  res;            // 0 = done, 1 = overflow, 2 = dropped bist
 	uint8_t  resrv1;

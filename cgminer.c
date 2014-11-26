@@ -1877,13 +1877,24 @@ void calc_midstate(struct work *work)
 {
 	unsigned char data[64];
 	uint32_t *data32 = (uint32_t *)data;
+    char *data32_txt;
+    char *swap32_txt;
+    char *data_txt;
 	sha256_ctx ctx;
 
 	flip64(data32, work->data);
+    data_txt = bin2hex(data, 64);
+    printf("[%s:%d] ###### data[%s]\n", __FILE__, __LINE__, data_txt);
 	sha256_init(&ctx);
 	sha256_update(&ctx, data, 64);
 	memcpy(work->midstate, ctx.h, 32);
 	endian_flip32(work->midstate, work->midstate);
+    data32_txt = bin2hex((uint8_t*)ctx.h, 32);
+    swap32_txt = bin2hex((uint8_t*)work->midstate, 32);
+    printf("[%s:%d] ###### merkle ctx.h [%s], work->midstate[%s]\n", __FILE__, __LINE__, data32_txt, swap32_txt);
+    free(data32_txt);
+    free(swap32_txt);
+    free(data_txt);
 }
 
 /* Returns the current value of total_work and increments it */
@@ -1898,7 +1909,7 @@ static int total_work_inc(void)
 	return ret;
 }
 
-static struct work *make_work(void)
+struct work *make_work(void)
 {
 	struct work *work = calloc(1, sizeof(struct work));
 
@@ -2152,6 +2163,13 @@ static bool gbt_decode(struct pool *pool, json_t *res_val)
 
 	hex2bin((unsigned char *)&pool->gbt_bits, bits, 4);
 
+    applog(LOG_ERR,"######### pool->gbt_expires[%d] pool->gbt_version[0x%08x] pool->curtime[0x%08x] pool->submit_old[%d] pool->gbt_bits[0x%08x]",
+            pool->gbt_expires,
+            pool->gbt_version,
+            pool->curtime,
+            pool->submit_old,
+            pool->gbt_bits
+          );
 	__build_gbt_txns(pool, res_val);
 	cg_wunlock(&pool->gbt_lock);
 
@@ -4423,9 +4441,13 @@ static void regen_hash(struct work *work)
 	uint32_t *swap32 = (uint32_t *)swap;
 	unsigned char hash1[32];
 
+    applog(LOG_ERR, "%s:%s:%d Lets check Win!!", __FUNCTION__, __FILE__, __LINE__);
 	flip80(swap32, data32);
+    applog(LOG_ERR, "%s:%s:%d Lets check Win!!", __FUNCTION__, __FILE__, __LINE__);
 	sha256(swap, 80, hash1);
+    applog(LOG_ERR, "%s:%s:%d Lets check Win!!", __FUNCTION__, __FILE__, __LINE__);
 	sha256(hash1, 32, (unsigned char *)(work->hash));
+    applog(LOG_ERR, "%s:%s:%d Lets check Win!!", __FUNCTION__, __FILE__, __LINE__);
 }
 
 static bool cnx_needed(struct pool *pool);
@@ -6199,7 +6221,7 @@ static bool cnx_needed(struct pool *pool)
 
 static void wait_lpcurrent(struct pool *pool);
 static void pool_resus(struct pool *pool);
-static void gen_stratum_work(struct pool *pool, struct work *work);
+void gen_stratum_work(struct pool *pool, struct work *work);
 
 void stratum_resumed(struct pool *pool)
 {
@@ -6911,11 +6933,13 @@ void submit_nonce2_nonce(struct thr_info *thr, uint32_t pool_no, uint64_t nonce2
 /* Generates stratum based work based on the most recent notify information
  * from the pool. This will keep generating work while a pool is down so we use
  * other means to detect when the pool has died in stratum_thread */
-static void gen_stratum_work(struct pool *pool, struct work *work)
+void gen_stratum_work(struct pool *pool, struct work *work)
 {
 	unsigned char merkle_root[32], merkle_sha[64];
 	uint32_t *data32, *swap32;
 	uint64_t nonce2le;
+    char *data32_txt;
+    char *swap32_txt;
 	int i;
 
 	cg_wlock(&pool->data_lock);
@@ -6941,6 +6965,11 @@ static void gen_stratum_work(struct pool *pool, struct work *work)
 	data32 = (uint32_t *)merkle_sha;
 	swap32 = (uint32_t *)merkle_root;
 	flip32(swap32, data32);
+    data32_txt = bin2hex((uint8_t*)data32, 32);
+    swap32_txt = bin2hex((uint8_t*)swap32, 32);
+    printf("[%s:%d]###### merkle data32 [%s], swap32[%s]\n", __FILE__, __LINE__, data32_txt, swap32_txt);
+    free(data32_txt);
+    free(swap32_txt);
 
 	/* Copy the data template from header_bin */
 	memcpy(work->data, pool->header_bin, 112);
@@ -7277,9 +7306,13 @@ static void rebuild_nonce(struct work *work, uint32_t nonce)
 {
 	uint32_t *work_nonce = (uint32_t *)(work->data + 64 + 12);
 
+    applog(LOG_ERR, "%s:%s:%d Lets check Win nonce [%08x]", __FUNCTION__, __FILE__, __LINE__, nonce);
 	*work_nonce = htole32(nonce);
+    applog(LOG_ERR, "%s:%s:%d Lets check Win work_nonce [%08x]", __FUNCTION__, __FILE__, __LINE__, *work_nonce);
 
+    applog(LOG_ERR, "%s:%s:%d Lets check Win!!", __FUNCTION__, __FILE__, __LINE__);
 	regen_hash(work);
+    applog(LOG_ERR, "%s:%s:%d Lets check Win!!", __FUNCTION__, __FILE__, __LINE__);
 }
 
 /* For testing a nonce against diff 1 */
@@ -7287,7 +7320,12 @@ bool test_nonce(struct work *work, uint32_t nonce)
 {
 	uint32_t *hash_32 = (uint32_t *)(work->hash + 28);
 
+    char *hash_txt = bin2hex((uint8_t*)work->hash, 32);
+    applog(LOG_ERR, "%s:%s:%d Lets check Win work->hash[%s]", __FUNCTION__, __FILE__, __LINE__, hash_txt);
+    free(hash_txt);
+    applog(LOG_ERR, "%s:%s:%d Lets check Win hash32[%08x]", __FUNCTION__, __FILE__, __LINE__, *hash_32);
 	rebuild_nonce(work, nonce);
+    applog(LOG_ERR, "%s:%s:%d Lets check Win hash32[%08x]==0??", __FUNCTION__, __FILE__, __LINE__, *hash_32);
 	return (*hash_32 == 0);
 }
 
@@ -7344,7 +7382,9 @@ bool submit_tested_work(struct thr_info *thr, struct work *work)
 /* Returns true if nonce for work was a valid share */
 bool submit_nonce(struct thr_info *thr, struct work *work, uint32_t nonce)
 {
+    applog(LOG_ERR, "%s:%s:%d Lets check Win nonce [%08x!!", __FUNCTION__, __FILE__, __LINE__, nonce);
 	if (test_nonce(work, nonce)) {
+        applog(LOG_ERR, "%s:%s:%d Lets check Win!!", __FUNCTION__, __FILE__, __LINE__);
 		submit_tested_work(thr, work);
 		applog(LOG_ERR, "Good Win!!");
 	} else {
