@@ -91,8 +91,6 @@ typedef struct {
 typedef struct {
     minergate_packet_header header;
 	uint16_t                protocol_version;
-	uint8_t                 requester_id;
-	uint8_t                 request_id;
 	uint8_t                 mask; // 0x01 = first request, 0x2 = drop old work
 	uint16_t                req_count;
 	minergate_do_job_req    req[MAX_REQUESTS]; // array of requests
@@ -100,8 +98,6 @@ typedef struct {
 
 typedef struct {
     minergate_packet_header header;
-	uint8_t                 requester_id;
-	uint8_t                 request_id;
 	uint8_t                 gh_div_10_rate; // == 
 	uint16_t                rsp_count;
 	minergate_do_job_rsp    rsp[MAX_RESPONDS]; // array of responce
@@ -118,7 +114,7 @@ minergate_rsp_packet *allocate_minergate_packet_rsp_v3(uint8_t requester_id, uin
 #define SPON_V3_SETWORK	0x1
 #define SPON_V3_GETNONCE2S 0x2
 
-int do_read(int fd, void *buf, int len);
-int do_write(int fd, const void *buf, int len);
-int do_read_packet(int fd, void* buf, int len);
+int     do_read(int fd, void *buf, int len);
+int     do_write(int fd, const void *buf, int len);
+int     do_read_packet(int fd, void* buf, int len);
 #endif
