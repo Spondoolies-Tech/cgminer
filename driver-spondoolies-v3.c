@@ -55,6 +55,8 @@
 #  define LOCAL_swap32le(type, var, sz)  ;
 #endif
 
+#define NTIME_OFFSET 0
+
 static inline void swap32yes(void *out, const void *in, size_t sz)
 {
 	size_t swapcounter;
@@ -63,20 +65,138 @@ static inline void swap32yes(void *out, const void *in, size_t sz)
 		(((uint32_t*)out)[swapcounter]) = swab32(((uint32_t*)in)[swapcounter]);
 }
 
+static void spondolies_handle_stale_jobs(struct cgpu_info *cgpu)
+{
+    struct spond_adapter *device = cgpu->device_data;
+    pthread_mutex_lock(&device->lock);
+    int i = 0;
+    for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
+        if (device->my_jobs[i].cgminer_work != NULL &&
+            strcmp(device->my_jobs[i].cgminer_work->job_id,
+                   device->my_jobs[i].cgminer_work->pool->swork.job_id) != 0) {
+#if 0
+            struct work *work = device->my_jobs[i].cgminer_work;
+            struct pool *pool = work->pool;
+            /*
+             * check that we still can work with merkles collision job
+             * data
+             */
+            if (pool->coinbase_len != work->coinbase_len) {
+                quit(1, "coinbase len changed work[%d] pool[%d]",
+                        work->coinbase_len,
+                        pool->coinbase_len);
+            }
+            if (pool->nonce2_offset != work->nonce2_offset) {
+                quit(1, "coinbase nonce2_offset changed work[%d] pool[%d]",
+                        work->nonce2_offset,
+                        pool->nonce2_offset);
+            }
+            int i = 0;
+            int j = 0;
+            int k = 0;
+            for (; i < pool->coinbase_len; ++i) {
+                if (i >= pool->nonce2_offset && i < pool->nonce2_offset+8)
+                    continue;
+                if (pool->coinbase[i] != work->coinbase[i]) {
+                    char *work_str;
+                    char *pool_str;
+                    work_str = bin2hex(work->coinbase, work->coinbase_len);
+                    pool_str = bin2hex(pool->coinbase, work->coinbase_len);
+                    printf("\nwork[%s]\n", work_str);
+                    printf("pool[%s]\n", pool_str);
+                    printf("     ");
+                    for (k = 0;k < i; ++k) {
+                        printf("--");
+                    }
+                    printf("^^\n");
+                    applog(LOG_ERR, "found diff at position[%d] coinbase_len[%d] enonce_pos[%d]",
+                            i,
+                            pool->coinbase_len,
+                            pool->nonce2_offset
+                            );
+                    free(work_str);
+                    free(pool_str);
+                }
+            }
+            if (pool->merkles != work->merkles) {
+                quit(1, "merkles number changed work[%d] pool[%d]",
+                        work->merkles,
+                        pool->merkles);
+            }
+            for (i = 0; i < work->merkles; ++i) {
+                for (j = 0; j < 32; ++j) {
+                    if (work->merklebin[i*32+j] != pool->swork.merkle_bin[i][j]) {
+                        char *work_str;
+                        char *pool_str;
+                        work_str = bin2hex(&work->merklebin[i*32], 32);
+                        pool_str = bin2hex(pool->swork.merkle_bin[i], 32);
+                        printf("\nwork[%s]\n", work_str);
+                        printf("pool[%s]\n", pool_str);
+                        printf("     ");
+                        for (k = 0;k < j; ++k) {
+                            printf("--");
+                        }
+                        printf("^^\n");
+                        applog(LOG_ERR, "merkles found diff at position[%d][%d]", i, j);
+                        free(work_str);
+                        free(pool_str);
+                        break;
+                    }
+                }
+            }
+            applog(LOG_ERR, "stale job!!! work id[%s], pool id[%s]",
+                    device->my_jobs[i].cgminer_work->job_id,
+                   device->my_jobs[i].cgminer_work->pool->swork.job_id);
+#endif
+            minergate_gen_packet stale_job;
+            stale_job.header.message_type = MINERGATE_MESSAGE_TYPE_STALE_JOB;
+            stale_job.header.message_size = sizeof(stale_job)-sizeof(stale_job.header);
+            stale_job.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
+            stale_job.rsv[0] = device->my_jobs[i].cgminer_work->id;
+            if (do_write(device->socket_fd, &stale_job, sizeof(stale_job)) != sizeof(stale_job)) {
+                quit(1, "broken conneciton with miner");
+            }
+            printf("\n#########[%s(%s:%d)] discard previous job[%016x]\n",
+                    __FUNCTION__,
+                    __FILE__,
+                    __LINE__,
+                    device->my_jobs[i].cgminer_work->id
+                    );
+            device->my_jobs[i].cgminer_work = NULL;
+        }
+    }
+    pthread_mutex_unlock(&device->lock);
+}
+
 static int spondoolies_get_free_my_job_id(struct spond_adapter *device)
 {
     int i = 0;
+    int res = -1;
+    pthread_mutex_lock(&device->lock);
     for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
         if (device->my_jobs[i].cgminer_work == NULL) {
-            return i;
+            res = i;
+            break;
         }
     }
-    return -1;
+    pthread_mutex_unlock(&device->lock);
+    return res;
 }
 
 static struct work* spondoolies_get_work_by_job_id(struct spond_adapter *device, int my_job_id)
 {
-    return device->my_jobs[my_job_id].cgminer_work;
+    int i = 0;
+    struct work *work = NULL;
+    pthread_mutex_lock(&device->lock);
+    for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
+        if (device->my_jobs[i].cgminer_work != NULL &&
+            device->my_jobs[i].cgminer_work->id == my_job_id) {
+            work = device->my_jobs[i].cgminer_work;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&device->lock);
+    return work;
 }
 
 static struct api_data *spondoolies_api_stats(struct cgpu_info *cgpu)
@@ -158,41 +278,56 @@ static bool spondoolies_prepare(struct thr_info *thr)
     return true;
 }
 
-static void fill_minergate_request(minergate_do_job_req* job, struct thr_info *thr, int my_job_id)
+static void fill_minergate_request(minergate_do_job_req* job, struct cgpu_info *cgpu, struct work *cg_work)
 {
     int i;
-    struct cgpu_info *spondoolies = thr->cgpu;
-    struct spond_adapter *device = spondoolies->device_data;
-    struct pool *pool = device->my_jobs[my_job_id].cgminer_work->pool;
-    uint64_t difficulty_64bit = round(pool->sdiff);
+	uint32_t converted[2];
+    uint8_t bytes[8]; // ntime 32 bit, nbits 32 bit  
+    struct spond_adapter *device = cgpu->device_data;
+    struct pool *pool = cg_work->pool;
     /*
      * fill the job
      */
     memset(job, 0, sizeof(minergate_do_job_req));
-    job->work_id_in_sw = my_job_id;
-    uint8_t bytes[8]; // ntime 32 bit, nbits 32 bit  
+    job->work_id_in_sw = cg_work->id;
     memcpy(
             bytes,
-            pool->header_bin + 4 /*bbversion*/ + 32 /*prev_hash*/ + 32 /*blank_merkle*/,
+            cg_work->data + 4 /*bbversion*/ + 32 /*prev_hash*/ + 32 /*blank_merkle*/,
             4 /*ntime*/ + 4 /*nbits*/
             );
 	LOCAL_swap32le(uint8_t, bytes, 2)
-	uint32_t converted[2];
 	swap32yes(converted, bytes, 2);
-	job->timestamp  = ntohl(converted[0]);
+	job->timestamp  = ntohl(converted[0]+NTIME_OFFSET);
 	job->difficulty = ntohl(converted[1]);
-    job->mrkle_root = 0; // TODO: please remove me from message
     memcpy(job->header_bin, pool->header_bin, sizeof(job->header_bin));
     /*
-     * leading zeros strange logic, taken from previous ??
+     * taking target and count leading zeros
      */
-    job->leading_zeroes = 30;
-    while (difficulty_64bit) {
+    unsigned char target[32];
+	unsigned char target_swap[32];
+    set_target(target, pool->sdiff);
+    // order bytes, so we have bits from left to right
+    swab256(target_swap, target);
+    // set termination point
+    target_swap[31] |= 0x01;
+    job->leading_zeroes = 0;
+    int pos = 0;
+    while (((target_swap[pos / 8] >> (7 - (pos % 8))) & 0x1) == 0x0) {
         job->leading_zeroes++;
-        difficulty_64bit = difficulty_64bit >> 1;
+        pos++;
+    }
+    if (opt_debug) {
+        char *target_str;
+        target_str = bin2hex(target_swap, 32);
+        applog(LOG_DEBUG, "stratum target[%s] work_difficulty[%f] job->leading_zeroes[%d]\n",
+                target_str,
+                cg_work->work_difficulty,
+                job->leading_zeroes
+              );
+        free(target_str);
     }
     job->ntime_limit = 0; //? not sure we need it
-    job->ntime_offset = 0; //? not sure we need it
+    job->ntime_offset = NTIME_OFFSET; //? not sure we need it
     job->resr1 = 0;
     job->coinbase_len = pool->coinbase_len;
     memcpy(job->coinbase, pool->coinbase, job->coinbase_len);
@@ -245,14 +380,26 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                 for (i = 0; i < results; ++i) {
                     // get work object that requested mining
                     struct work *work = spondoolies_get_work_by_job_id(device, rsp->rsp[i].work_id_in_sw);
+                    if (work == NULL) {
+                        free(message);
+                        return 0;
+                    }
                     // build new coinbase, adding enonce
                     // TODO: since this already done in miner, we may pass data in message
                     //       to reduce CPU time
                     uint8_t coinbase[work->coinbase_len];
                     memcpy(coinbase, work->coinbase, work->coinbase_len);
-                    *(uint64_t *)(coinbase + work->nonce2_offset) = htole64((rsp->rsp[i].enonce[0])|((uint64_t)rsp->rsp[i].chip_id<<32));
-                    work->nonce2 = htole64((rsp->rsp[i].enonce[0])|((uint64_t)rsp->rsp[i].chip_id<<32));
-                    // calucating merkle root for work data
+                    //work->nonce2_len = 8;
+                    work->nonce2 = rsp->rsp[i].enonce;
+                    applog(LOG_NOTICE, "enonce[%016llx] converted[%016llx] nonce[%08x]",
+                            work->nonce2,
+                            htole64(work->nonce2),
+                            rsp->rsp[i].winner_nonce
+                            );
+                    *(uint64_t *)(coinbase + work->nonce2_offset) = htole64(work->nonce2);
+                    /*
+                     * calucating merkle root for work data
+                     */
                     uint8_t merkle_root[32];
                     gen_hash(coinbase, merkle_root, work->coinbase_len);
                     uint8_t merkle_sha[64];
@@ -265,10 +412,14 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                     flip32(merkle_root_swapped, merkle_root);
                     // copy merkle root to merkle root place 4+32
                     memcpy(work->data + 4 /*bbversion*/ + 32 /*prev_hash*/, merkle_root_swapped, 32);
-					if (!submit_nonce(work->thr, work, ntohl(rsp->rsp[i].winner_nonce[0]))) {
-                        applog(LOG_ERR, "%s: win [%d/%d] enonce[%08x] nonce [%08x]",
+#if 1
+					if (!submit_nonce(work->thr, work, ntohl(rsp->rsp[i].winner_nonce))) {
+#else 
+					if (!submit_noffset_nonce(work->thr, work, ntohl(rsp->rsp[i].winner_nonce), NTIME_OFFSET)) {
+#endif
+                        quit(1, "%s: win [%d/%d] enonce[%016llx] nonce [%08x]",
                                 spondooliesv3_drv.dname,
-                                i,
+                                i+1,
                                 results,
                                 rsp->rsp[i].enonce       /*nonce2*/,
                                 rsp->rsp[i].winner_nonce /*nonce*/);
@@ -291,100 +442,9 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
 
 static int64_t spond_scanhash(struct thr_info *thr)
 {
-    struct cgpu_info *spondoolies = thr->cgpu;
-    struct spond_adapter *device = spondoolies->device_data;
-    struct pool *pool = NULL;//current_pool();
-    struct work *work = NULL;
-    if (thr->work_restart || thr->work_update) {
-        int id = -1;
-        applog(LOG_ERR, "%s: restart: %d, update: %d",
-                spondooliesv3_drv.dname,
-                thr->work_restart,
-                thr->work_update);
-        /*
-         * set states of cgminer to false
-         */
-        thr->work_update = false;
-        thr->work_restart = false;
-        /*
-         * Make sure pool is ready, get_work is blocking funciton
-         * and never returns NULL
-         */
-        id = spondoolies_get_free_my_job_id(device);
-        if (id <0) {
-            applog(LOG_ERR, "%s: no free container to handle the job", spondooliesv3_drv.dname);
-            return 0;
-        }
-        work = get_work(thr, thr->id);
-#if 1 // TODO: do we need it, checked for crash..??
-        work->thr = spondoolies->thr[0];
-        work->thr_id = spondoolies->thr[0]->id;
-        assert(work->thr);
-        work->subid = 0;
-#endif
-        pool = work->pool;
-        device->my_jobs[id].cgminer_work = work;
-        /*
-         * check that pool request is correct
-         */
-        if (!pool->has_stratum) {
-            quit(1, "%s: Miner Manager have to use stratum pool", spondooliesv3_drv.dname);
-        }
-        if (pool->coinbase_len > SPOND_MAX_COINBASE_LEN) {
-            applog(LOG_ERR, "%s: Miner Manager pool coinbase length[%d] have to less then %d",
-                    spondooliesv3_drv.dname,
-                    pool->coinbase_len,
-                    SPOND_MAX_COINBASE_LEN);
-            return 0;
-        }
-        if (pool->merkles > SPOND_MAX_MERKLES) {
-            applog(LOG_ERR, "%s: Miner Manager merkles have to less then %d",
-                    spondooliesv3_drv.dname,
-                    SPOND_MAX_MERKLES);
-            return 0;
-        }
-        /*
-         * fill job and send it to miner
-         */
-        minergate_req_packet req_packet;
-        memset(&req_packet, 0, sizeof(req_packet));
-        req_packet.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
-        req_packet.header.message_type = MINERGATE_MESSAGE_TYPE_JOB_REQ;
-        req_packet.header.message_size = sizeof(req_packet)-sizeof(req_packet.header);
-        // TODO: use MACRO
-        req_packet.mask = 0x01; // 0x01 = first request, 0x2 = drop old work
-        req_packet.req_count = 1; // one job only
-        // currently we will send only one job
-		cg_wlock(&pool->data_lock);
-        fill_minergate_request(&req_packet.req[0], thr, id);
-		cg_wunlock(&pool->data_lock);
-        do_write(device->socket_fd, &req_packet, sizeof(req_packet));
-        /*
-         * read the response from miner
-         */
-        minergate_gen_packet rsp_packet;
-        uint32_t size = 0;
-        if ((size = do_read_packet(device->socket_fd, &rsp_packet, sizeof(rsp_packet))) != sizeof(rsp_packet)) {
-            quit(1, "%s: critical error, packet sent from miner is bad received size[%u] expected [%u], quiting...",
-                    spondooliesv3_drv.dname,
-                    size,
-                    sizeof(rsp_packet)
-                    );
-            return 0;
-        }
-        switch (rsp_packet.header.message_type) {
-            case MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK:
-                applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK", spondooliesv3_drv.dname);
-                break;
-            case MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ:
-                applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ", spondooliesv3_drv.dname);
-                break;
-            default:
-                applog(LOG_ERR, "%s unexpected type[%x]", spondooliesv3_drv.dname, rsp_packet.header.message_type);
-                return 0;
-        }
-    }
-    return polling_and_return_number_of_wins(thr);
+    polling_and_return_number_of_wins(thr);
+    return 50000; // TODO: temporary value, must be
+                  //       calculated from miner
 }
 
 static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
@@ -394,7 +454,103 @@ static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
 static void spond_flush_work(struct cgpu_info *cgpu)
 {
     struct spond_adapter *device = cgpu->device_data;
-    // TODO: we may not need this function
+    spondolies_handle_stale_jobs(cgpu);
+}
+
+static bool spondoolies_queue_full(struct cgpu_info *cgpu)
+{
+    struct spond_adapter *device = cgpu->device_data;
+    struct work *work = NULL;
+    struct pool *pool = NULL;
+    int id = 0;
+#if 0    
+    spondolies_handle_stale_jobs(cgpu);
+#endif
+    /*
+     * Lets check that if we can accept new job
+     */
+    id = spondoolies_get_free_my_job_id(device);
+    if (id <0) {
+        return true;
+    }
+    /*
+     * get the work and initialize work thread data
+     */
+    work = get_queued(cgpu);
+    if (work == NULL) {
+        return false;
+    }
+    work->thr = cgpu->thr[0];
+    work->thr_id = cgpu->thr[0]->id;
+    assert(work->thr);
+    work->subid = 0;
+    applog(LOG_NOTICE, "new work job_id[%s]", work->job_id);
+    /*
+     * check that pool request is correct
+     */
+    pool = work->pool;
+    if (!pool->has_stratum) {
+        quit(1, "%s: Miner Manager have to use stratum pool", spondooliesv3_drv.dname);
+    }
+    if (pool->coinbase_len > SPOND_MAX_COINBASE_LEN) {
+        applog(LOG_ERR, "%s: Miner Manager pool coinbase length[%d] have to less then %d",
+                spondooliesv3_drv.dname,
+                pool->coinbase_len,
+                SPOND_MAX_COINBASE_LEN);
+        return false;
+    }
+    if (pool->merkles > SPOND_MAX_MERKLES) {
+        applog(LOG_ERR, "%s: Miner Manager merkles have to less then %d",
+                spondooliesv3_drv.dname,
+                SPOND_MAX_MERKLES);
+        return false;
+    }
+    /*
+     * fill job and send it to miner
+     */
+    minergate_req_packet req_packet;
+    memset(&req_packet, 0, sizeof(req_packet));
+    req_packet.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
+    req_packet.header.message_type = MINERGATE_MESSAGE_TYPE_JOB_REQ;
+    req_packet.header.message_size = sizeof(req_packet)-sizeof(req_packet.header);
+    // TODO: use MACRO
+    req_packet.mask = 0x01; // 0x01 = first request, 0x2 = drop old work
+    req_packet.req_count = 1; // one job only
+    // currently we will send only one job
+    cg_wlock(&pool->data_lock);
+    fill_minergate_request(&req_packet.req[0], cgpu, work);
+    cg_wunlock(&pool->data_lock);
+    do_write(device->socket_fd, &req_packet, sizeof(req_packet));
+    /*
+     * read the response from miner
+     */
+    minergate_gen_packet rsp_packet;
+    uint32_t size = 0;
+    if ((size = do_read_packet(device->socket_fd, &rsp_packet, sizeof(rsp_packet))) != sizeof(rsp_packet)) {
+        quit(1, "%s: critical error, packet sent from miner is bad received size[%u] expected [%u], quiting...",
+                spondooliesv3_drv.dname,
+                size,
+                sizeof(rsp_packet)
+            );
+    }
+    switch (rsp_packet.header.message_type) {
+        case MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK:
+            applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK", spondooliesv3_drv.dname);
+            break;
+        case MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ:
+            applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ", spondooliesv3_drv.dname);
+            break;
+        default:
+            applog(LOG_ERR, "%s unexpected type[%x]", spondooliesv3_drv.dname, rsp_packet.header.message_type);
+            return false;
+    }
+    /*
+     * everything is ok, we cache the job
+     */
+    pthread_mutex_lock(&device->lock);
+    device->my_jobs[id].cgminer_work = work;
+    pthread_mutex_unlock(&device->lock);
+    return true;
 }
 
 struct device_drv spondooliesv3_drv = {
@@ -409,4 +565,5 @@ struct device_drv spondooliesv3_drv = {
     .scanwork = spond_scanhash,
     .thread_shutdown = spondoolies_shutdown,
     .flush_work = spond_flush_work,
+	.queue_full = spondoolies_queue_full,
 };

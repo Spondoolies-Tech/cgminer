@@ -39,7 +39,8 @@ typedef enum {
     MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK  = 0xCAFE4444,
     MINERGATE_MESSAGE_TYPE_RSP_REQ      = 0xCAFE5555,
     MINERGATE_MESSAGE_TYPE_RSP_NODATA   = 0xCAFE6666,
-    MINERGATE_MESSAGE_TYPE_RSP_DATA     = 0xCAFE7777
+    MINERGATE_MESSAGE_TYPE_RSP_DATA     = 0xCAFE7777,
+    MINERGATE_MESSAGE_TYPE_STALE_JOB    = 0xCAFE8888
 } MINERGATE_MESSAGE_TYPE;
 
 #define SPOND_MAX_COINBASE_LEN      1024
@@ -55,7 +56,6 @@ typedef struct {
 	uint8_t  ntime_limit; //? not sure we need it
 	uint8_t  ntime_offset; //? not sure we need it
 	uint8_t  resr1;
-    uint32_t mrkle_root;
 	uint32_t coinbase_len;
 	uint8_t  coinbase[SPOND_MAX_COINBASE_LEN];
 	uint32_t nonce2_offset;
@@ -66,15 +66,14 @@ typedef struct {
                               // timestamp
 } minergate_do_job_req;
 
-#define MAX_REQUESTS 100
+#define MAX_REQUESTS 1
 #define MAX_RESPONDS 100
-#define MINERGATE_TOTAL_QUEUE 100
 
 typedef struct {
 	uint32_t work_id_in_sw;
 	uint32_t mrkle_root;     // to validate
-	uint32_t winner_nonce[2];
-    uint32_t enonce[2];      // winner enonce as well
+	uint32_t winner_nonce;
+    uint64_t enonce;      // winner enonce as well
 	uint8_t  chip_id;
 	uint8_t  ntime_offset;
 	uint8_t  res;            // 0 = done, 1 = overflow, 2 = dropped bist
@@ -105,7 +104,7 @@ typedef struct {
 
 typedef struct {
     minergate_packet_header header;
-    uint8_t                 rsv[4];
+    uint32_t                 rsv[4];
 } minergate_gen_packet;
 
 minergate_req_packet *allocate_minergate_packet_req_v3(uint8_t requester_id, uint8_t request_id);

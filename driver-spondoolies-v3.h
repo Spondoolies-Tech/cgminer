@@ -27,8 +27,8 @@ typedef enum spond_work_state {
 	SPONDWORK_STATE_IN_BUSY,
 } SPONDWORK_STATE;
 
-#define MAX_JOBS_IN_MINERGATE MINERGATE_TOTAL_QUEUE // 1.5 sec worth of jobs
-#define MAX_NROLLS 50 
+#define MAX_JOBS_IN_MINERGATE   1 
+#define MAX_NROLLS              50 
 
 typedef struct {
 	struct work      *cgminer_work;
@@ -37,6 +37,7 @@ typedef struct {
 	time_t           start_time;
 	int              job_id[MAX_NROLLS];
 	int              ntime_clones;
+    int              valid;
 } spond_driver_work;
 
 struct spond_adapter {
