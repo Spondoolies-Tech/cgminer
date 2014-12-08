@@ -72,8 +72,8 @@ static void spondolies_handle_stale_jobs(struct cgpu_info *cgpu)
     int i = 0;
     for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
         if (device->my_jobs[i].cgminer_work != NULL &&
-            strcmp(device->my_jobs[i].cgminer_work->job_id,
-                   device->my_jobs[i].cgminer_work->pool->swork.job_id) != 0) {
+                strcmp(device->my_jobs[i].cgminer_work->job_id,
+                    device->my_jobs[i].cgminer_work->pool->swork.job_id) != 0) {
 #if 0
             struct work *work = device->my_jobs[i].cgminer_work;
             struct pool *pool = work->pool;
@@ -113,7 +113,7 @@ static void spondolies_handle_stale_jobs(struct cgpu_info *cgpu)
                             i,
                             pool->coinbase_len,
                             pool->nonce2_offset
-                            );
+                          );
                     free(work_str);
                     free(pool_str);
                 }
@@ -146,7 +146,7 @@ static void spondolies_handle_stale_jobs(struct cgpu_info *cgpu)
             }
             applog(LOG_ERR, "stale job!!! work id[%s], pool id[%s]",
                     device->my_jobs[i].cgminer_work->job_id,
-                   device->my_jobs[i].cgminer_work->pool->swork.job_id);
+                    device->my_jobs[i].cgminer_work->pool->swork.job_id);
 #endif
             minergate_gen_packet stale_job;
             stale_job.header.message_type = MINERGATE_MESSAGE_TYPE_STALE_JOB;
@@ -156,12 +156,7 @@ static void spondolies_handle_stale_jobs(struct cgpu_info *cgpu)
             if (do_write(device->socket_fd, &stale_job, sizeof(stale_job)) != sizeof(stale_job)) {
                 quit(1, "broken conneciton with miner");
             }
-            printf("\n#########[%s(%s:%d)] discard previous job[%016x]\n",
-                    __FUNCTION__,
-                    __FILE__,
-                    __LINE__,
-                    device->my_jobs[i].cgminer_work->id
-                    );
+            applog(LOG_DEBUG, "discard previous job[%s]\n", device->my_jobs[i].cgminer_work->job_id);
             device->my_jobs[i].cgminer_work = NULL;
         }
     }
@@ -384,45 +379,40 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                         free(message);
                         return 0;
                     }
-                    // build new coinbase, adding enonce
-                    // TODO: since this already done in miner, we may pass data in message
-                    //       to reduce CPU time
-                    uint8_t coinbase[work->coinbase_len];
-                    memcpy(coinbase, work->coinbase, work->coinbase_len);
-                    //work->nonce2_len = 8;
-                    work->nonce2 = rsp->rsp[i].enonce;
-                    applog(LOG_NOTICE, "enonce[%016llx] converted[%016llx] nonce[%08x]",
-                            work->nonce2,
-                            htole64(work->nonce2),
-                            rsp->rsp[i].winner_nonce
-                            );
-                    *(uint64_t *)(coinbase + work->nonce2_offset) = htole64(work->nonce2);
                     /*
-                     * calucating merkle root for work data
+                     * calucating merkle root for work data,
+                     * code taken from cgminer - gen_stratum_work
+                     *
+                     * TODO: since this already done in miner, we may pass data in message
+                     *       to reduce CPU time
                      */
-                    uint8_t merkle_root[32];
+                    unsigned char merkle_root[32], merkle_sha[64];
+                    uint32_t *data32, *swap32;
+                    uint8_t coinbase[work->coinbase_len];
+                    uint64_t nonce2le = htole64(rsp->rsp[i].nonce2);
+                    memcpy(coinbase, work->coinbase, work->coinbase_len);
+                    work->nonce2_len = rsp->rsp[i].nonce2_len;
+                    work->nonce2 = rsp->rsp[i].nonce2;
+                    memcpy(coinbase + work->nonce2_offset, &nonce2le, work->nonce2_len);
                     gen_hash(coinbase, merkle_root, work->coinbase_len);
-                    uint8_t merkle_sha[64];
-                    for (j = 0; j < work->merkles; ++j) {
-                        memcpy(merkle_sha, merkle_root, 32);
-                        memcpy(merkle_sha + 32, work->merklebin + j * 32, 32);
+                    memcpy(merkle_sha, merkle_root, 32);
+                    for (j = 0; j < work->merkles; j++) {
+                        memcpy(merkle_sha + 32,  work->merklebin + j * 32, 32);
                         gen_hash(merkle_sha, merkle_root, 64);
+                        memcpy(merkle_sha, merkle_root, 32);
                     }
-                    uint8_t merkle_root_swapped[32];
-                    flip32(merkle_root_swapped, merkle_root);
-                    // copy merkle root to merkle root place 4+32
-                    memcpy(work->data + 4 /*bbversion*/ + 32 /*prev_hash*/, merkle_root_swapped, 32);
-#if 1
-					if (!submit_nonce(work->thr, work, ntohl(rsp->rsp[i].winner_nonce))) {
-#else 
-					if (!submit_noffset_nonce(work->thr, work, ntohl(rsp->rsp[i].winner_nonce), NTIME_OFFSET)) {
-#endif
+                    data32 = (uint32_t *)merkle_sha;
+                    swap32 = (uint32_t *)merkle_root;
+                    flip32(swap32, data32);
+                    memcpy(work->data + 4 /*bbversion*/ + 32 /*prev_hash*/, merkle_root, 32);
+                    if (!submit_nonce(work->thr, work, ntohl(rsp->rsp[i].winner_nonce))) {
                         quit(1, "%s: win [%d/%d] enonce[%016llx] nonce [%08x]",
                                 spondooliesv3_drv.dname,
                                 i+1,
                                 results,
-                                rsp->rsp[i].enonce       /*nonce2*/,
-                                rsp->rsp[i].winner_nonce /*nonce*/);
+                                rsp->rsp[i].nonce2,
+                                rsp->rsp[i].winner_nonce
+                            );
                     }
                 }
                 free(message);

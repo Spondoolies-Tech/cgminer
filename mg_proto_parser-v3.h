@@ -70,15 +70,16 @@ typedef struct {
 #define MAX_RESPONDS 100
 
 typedef struct {
-	uint32_t work_id_in_sw;
-	uint32_t mrkle_root;     // to validate
-	uint32_t winner_nonce;
-    uint64_t enonce;      // winner enonce as well
-	uint8_t  chip_id;
-	uint8_t  ntime_offset;
-	uint8_t  res;            // 0 = done, 1 = overflow, 2 = dropped bist
-	uint8_t  resrv1;
-	uint8_t  resrv2;
+    uint32_t work_id_in_sw;
+    uint32_t mrkle_root;     // to validate
+    uint32_t winner_nonce;
+    uint8_t  nonce2_len;
+    uint64_t nonce2;        // winner enonce as well
+    uint8_t  chip_id;
+    uint8_t  ntime_offset;
+    uint8_t  res;            // 0 = done, 1 = overflow, 2 = dropped bist
+    uint8_t  resrv1;
+    uint8_t  resrv2;
 } minergate_do_job_rsp;
 
 typedef struct {
