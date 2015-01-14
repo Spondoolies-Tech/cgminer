@@ -52,14 +52,14 @@ static inline void swap32yes(void *out, const void *in, size_t sz)
     }
 }
 
-static int spondoolies_get_id_of_available_driver_work(struct spond_adapter *device)
+static bool spondoolies_is_queue_full(struct spond_adapter *device)
 {
     int i = 0;
-    int res = -1;
+    bool res = true;
     pthread_mutex_lock(&device->lock);
     for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
         if (device->my_jobs[i].cgminer_work == NULL) {
-            res = i;
+            res = false;
             break;
         }
     }
@@ -67,14 +67,27 @@ static int spondoolies_get_id_of_available_driver_work(struct spond_adapter *dev
     return res;
 }
 
-static struct work* spondoolies_get_driver_work_by_job_id(struct spond_adapter *device, int my_job_id)
+static void spondoolies_push_work_to_queue(struct spond_adapter *device, struct work* cg_work)
+{
+    int i = 0;
+    pthread_mutex_lock(&device->lock);
+    for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
+        if (device->my_jobs[i].cgminer_work == NULL) {
+            device->my_jobs[i].cgminer_work = cg_work;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&device->lock);
+}
+
+static struct work* spondoolies_get_work_from_queue(struct spond_adapter *device, int work_id)
 {
     int i = 0;
     struct work *work = NULL;
     pthread_mutex_lock(&device->lock);
     for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
         if (device->my_jobs[i].cgminer_work != NULL &&
-                device->my_jobs[i].cgminer_work->id == my_job_id) {
+                device->my_jobs[i].cgminer_work->id == work_id) {
             work = device->my_jobs[i].cgminer_work;
             break;
         }
@@ -231,7 +244,7 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                 int results = rsp->rsp_count;
                 for (i = 0; i < results; ++i) {
                     // get work object that requested mining
-                    struct work *work = spondoolies_get_driver_work_by_job_id(device, rsp->rsp[i].work_id_in_sw);
+                    struct work *work = spondoolies_get_work_from_queue(device, rsp->rsp[i].work_id_in_sw);
                     if (work == NULL) {
                         free(message);
                         return 0;
@@ -300,11 +313,7 @@ static void spond_flush_work(struct cgpu_info *cgpu)
     pthread_mutex_lock(&device->lock);
     int i = 0;
     for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
-        if (device->my_jobs[i].cgminer_work != NULL &&
-                strcmp(
-                    device->my_jobs[i].cgminer_work->job_id,
-                    device->my_jobs[i].cgminer_work->pool->swork.job_id
-                    ) != 0) {
+        if (device->my_jobs[i].cgminer_work != NULL) {
             minergate_gen_packet stale_job;
             stale_job.header.message_type = MINERGATE_MESSAGE_TYPE_STALE_JOB;
             stale_job.header.message_size = sizeof(stale_job)-sizeof(stale_job.header);
@@ -325,12 +334,10 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
     struct spond_adapter *device = cgpu->device_data;
     struct work *work = NULL;
     struct pool *pool = NULL;
-    int id = 0;
     /*
-     * Lets check that if we can accept new job
+     * Lets check that if we have place in our queue for new job
      */
-    id = spondoolies_get_id_of_available_driver_work(device);
-    if (id <0) {
+    if (spondoolies_is_queue_full(device)) {
         return true;
     }
     /*
@@ -408,7 +415,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
      * everything is ok, we cache the job
      */
     pthread_mutex_lock(&device->lock);
-    device->my_jobs[id].cgminer_work = work;
+    spondoolies_push_work_to_queue(device, work);
     pthread_mutex_unlock(&device->lock);
     return true;
 }
