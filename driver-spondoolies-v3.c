@@ -9,13 +9,6 @@
  * any later version.  See COPYING for more details.
  */
 
-/*
-   This driver communicates the job requests via Unix socket to the minergate
-   process, that is responsible for controlling the Spondoolies Dawson SP10 miner.
-
-   The jobs sent each with unique ID and returned asynchronously in one of the next
-   transactions. REQUEST_PERIOD and REQUEST_SIZE define the communication rate with minergate.
-   */
 #include <float.h>
 #include <limits.h>
 #include <pthread.h>
@@ -44,14 +37,8 @@
 #include "driver-spondoolies-v3.h"
 
 #ifdef WORDS_BIGENDIAN
-#  define swap32tobe(out, in, sz)  ((out == in) ? (void)0 : memmove(out, in, sz))
-#  define LOCAL_swap32be(type, var, sz)  ;
-#  define swap32tole(out, in, sz)  swap32yes(out, in, sz)
 #  define LOCAL_swap32le(type, var, sz)  LOCAL_swap32(type, var, sz)
 #else
-#  define swap32tobe(out, in, sz)  swap32yes(out, in, sz)
-#  define LOCAL_swap32be(type, var, sz)  LOCAL_swap32(type, var, sz)
-#  define swap32tole(out, in, sz)  ((out == in) ? (void)0 : memmove(out, in, sz))
 #  define LOCAL_swap32le(type, var, sz)  ;
 #endif
 
@@ -59,108 +46,10 @@
 
 static inline void swap32yes(void *out, const void *in, size_t sz)
 {
-	size_t swapcounter;
-
-	for (swapcounter = 0; swapcounter < sz; ++swapcounter)
-		(((uint32_t*)out)[swapcounter]) = swab32(((uint32_t*)in)[swapcounter]);
-}
-
-static void spondolies_handle_stale_jobs(struct cgpu_info *cgpu)
-{
-    struct spond_adapter *device = cgpu->device_data;
-    pthread_mutex_lock(&device->lock);
-    int i = 0;
-    for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
-        if (device->my_jobs[i].cgminer_work != NULL &&
-                strcmp(device->my_jobs[i].cgminer_work->job_id,
-                    device->my_jobs[i].cgminer_work->pool->swork.job_id) != 0) {
-#if 0
-            struct work *work = device->my_jobs[i].cgminer_work;
-            struct pool *pool = work->pool;
-            /*
-             * check that we still can work with merkles collision job
-             * data
-             */
-            if (pool->coinbase_len != work->coinbase_len) {
-                quit(1, "coinbase len changed work[%d] pool[%d]",
-                        work->coinbase_len,
-                        pool->coinbase_len);
-            }
-            if (pool->nonce2_offset != work->nonce2_offset) {
-                quit(1, "coinbase nonce2_offset changed work[%d] pool[%d]",
-                        work->nonce2_offset,
-                        pool->nonce2_offset);
-            }
-            int i = 0;
-            int j = 0;
-            int k = 0;
-            for (; i < pool->coinbase_len; ++i) {
-                if (i >= pool->nonce2_offset && i < pool->nonce2_offset+8)
-                    continue;
-                if (pool->coinbase[i] != work->coinbase[i]) {
-                    char *work_str;
-                    char *pool_str;
-                    work_str = bin2hex(work->coinbase, work->coinbase_len);
-                    pool_str = bin2hex(pool->coinbase, work->coinbase_len);
-                    printf("\nwork[%s]\n", work_str);
-                    printf("pool[%s]\n", pool_str);
-                    printf("     ");
-                    for (k = 0;k < i; ++k) {
-                        printf("--");
-                    }
-                    printf("^^\n");
-                    applog(LOG_ERR, "found diff at position[%d] coinbase_len[%d] enonce_pos[%d]",
-                            i,
-                            pool->coinbase_len,
-                            pool->nonce2_offset
-                          );
-                    free(work_str);
-                    free(pool_str);
-                }
-            }
-            if (pool->merkles != work->merkles) {
-                quit(1, "merkles number changed work[%d] pool[%d]",
-                        work->merkles,
-                        pool->merkles);
-            }
-            for (i = 0; i < work->merkles; ++i) {
-                for (j = 0; j < 32; ++j) {
-                    if (work->merklebin[i*32+j] != pool->swork.merkle_bin[i][j]) {
-                        char *work_str;
-                        char *pool_str;
-                        work_str = bin2hex(&work->merklebin[i*32], 32);
-                        pool_str = bin2hex(pool->swork.merkle_bin[i], 32);
-                        printf("\nwork[%s]\n", work_str);
-                        printf("pool[%s]\n", pool_str);
-                        printf("     ");
-                        for (k = 0;k < j; ++k) {
-                            printf("--");
-                        }
-                        printf("^^\n");
-                        applog(LOG_ERR, "merkles found diff at position[%d][%d]", i, j);
-                        free(work_str);
-                        free(pool_str);
-                        break;
-                    }
-                }
-            }
-            applog(LOG_ERR, "stale job!!! work id[%s], pool id[%s]",
-                    device->my_jobs[i].cgminer_work->job_id,
-                    device->my_jobs[i].cgminer_work->pool->swork.job_id);
-#endif
-            minergate_gen_packet stale_job;
-            stale_job.header.message_type = MINERGATE_MESSAGE_TYPE_STALE_JOB;
-            stale_job.header.message_size = sizeof(stale_job)-sizeof(stale_job.header);
-            stale_job.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
-            stale_job.rsv[0] = device->my_jobs[i].cgminer_work->id;
-            if (do_write(device->socket_fd, &stale_job, sizeof(stale_job)) != sizeof(stale_job)) {
-                quit(1, "broken conneciton with miner");
-            }
-            applog(LOG_DEBUG, "discard previous job[%s]\n", device->my_jobs[i].cgminer_work->job_id);
-            device->my_jobs[i].cgminer_work = NULL;
-        }
+    size_t swapcounter;
+    for (swapcounter = 0; swapcounter < sz; ++swapcounter) {
+        (((uint32_t*)out)[swapcounter]) = swab32(((uint32_t*)in)[swapcounter]);
     }
-    pthread_mutex_unlock(&device->lock);
 }
 
 static int spondoolies_get_free_my_job_id(struct spond_adapter *device)
@@ -185,24 +74,13 @@ static struct work* spondoolies_get_work_by_job_id(struct spond_adapter *device,
     pthread_mutex_lock(&device->lock);
     for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
         if (device->my_jobs[i].cgminer_work != NULL &&
-            device->my_jobs[i].cgminer_work->id == my_job_id) {
+                device->my_jobs[i].cgminer_work->id == my_job_id) {
             work = device->my_jobs[i].cgminer_work;
             break;
         }
     }
     pthread_mutex_unlock(&device->lock);
     return work;
-}
-
-static struct api_data *spondoolies_api_stats(struct cgpu_info *cgpu)
-{
-    struct spond_adapter *device = cgpu->device_data;
-    struct api_data *root = NULL;
-    // TODO: need to ensure that params filled
-    root = api_add_int(root, "ASICs total rate", &device->temp_rate, false);
-    root = api_add_int(root, "Temparature rear", &device->rear_temp, false);
-    root = api_add_int(root, "Temparature front", &device->front_temp, false);
-    return root;
 }
 
 static int init_socket()
@@ -235,7 +113,6 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
     struct cgpu_info *cgpu = calloc(1, sizeof(struct cgpu_info));
     struct device_drv *drv = &spondooliesv3_drv;
     struct spond_adapter *device;
-
     assert(cgpu);
     cgpu->drv = drv;
     cgpu->deven = DEV_ENABLED;
@@ -244,8 +121,6 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
     assert(cgpu->device_data);
     device = cgpu->device_data;
     device->cgpu = (void *)cgpu;
-    // TODO: ??
-    device->adapter_state = ADAPTER_STATE_OPERATIONAL;
     pthread_mutex_init(&device->lock, NULL);
     device->socket_fd = init_socket();
     if (device->socket_fd < 1) {
@@ -255,28 +130,10 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
     applog(LOG_DEBUG, "%s %s done", spondooliesv3_drv.dname, __FUNCTION__);
 }
 
-static void spondoolies_init(struct cgpu_info *cgpu)
-{
-    struct spond_adapter *device = cgpu->device_data;
-    // TODO: we need forward this request to our miner
-    applog(LOG_DEBUG, "%s %s done", spondooliesv3_drv.dname, __FUNCTION__);
-}
-
-static bool spondoolies_prepare(struct thr_info *thr)
-{
-    struct cgpu_info *spondoolies = thr->cgpu;
-    struct timeval now;
-    assert(spondoolies);
-    cgtime(&now);
-    // TODO: do we want send special message to miner??
-    applog(LOG_DEBUG, "%s %s done", spondooliesv3_drv.dname, __FUNCTION__);
-    return true;
-}
-
 static void fill_minergate_request(minergate_do_job_req* job, struct cgpu_info *cgpu, struct work *cg_work)
 {
     int i;
-	uint32_t converted[2];
+    uint32_t converted[2];
     uint8_t bytes[8]; // ntime 32 bit, nbits 32 bit  
     struct spond_adapter *device = cgpu->device_data;
     struct pool *pool = cg_work->pool;
@@ -289,17 +146,17 @@ static void fill_minergate_request(minergate_do_job_req* job, struct cgpu_info *
             bytes,
             cg_work->data + 4 /*bbversion*/ + 32 /*prev_hash*/ + 32 /*blank_merkle*/,
             4 /*ntime*/ + 4 /*nbits*/
-            );
-	LOCAL_swap32le(uint8_t, bytes, 2)
-	swap32yes(converted, bytes, 2);
-	job->timestamp  = ntohl(converted[0]+NTIME_OFFSET);
-	job->difficulty = ntohl(converted[1]);
+          );
+    LOCAL_swap32le(uint8_t, bytes, 2)
+        swap32yes(converted, bytes, 2);
+    job->timestamp  = ntohl(converted[0]+NTIME_OFFSET);
+    job->difficulty = ntohl(converted[1]);
     memcpy(job->header_bin, pool->header_bin, sizeof(job->header_bin));
     /*
      * taking target and count leading zeros
      */
     unsigned char target[32];
-	unsigned char target_swap[32];
+    unsigned char target_swap[32];
     set_target(target, pool->sdiff);
     // order bytes, so we have bits from left to right
     swab256(target_swap, target);
@@ -329,9 +186,9 @@ static void fill_minergate_request(minergate_do_job_req* job, struct cgpu_info *
     job->nonce2_offset = pool->nonce2_offset;
     job->merkles = pool->merkles;
     // each merkle is 32 bytes size
-	for (i = 0; i < pool->merkles; ++i) {
-		memcpy(job->merkle + 32 * i, pool->swork.merkle_bin[i], 32);
-	}
+    for (i = 0; i < pool->merkles; ++i) {
+        memcpy(job->merkle + 32 * i, pool->swork.merkle_bin[i], 32);
+    }
 }
 
 static int polling_and_return_number_of_wins(struct thr_info *thr)
@@ -434,17 +291,33 @@ static int64_t spond_scanhash(struct thr_info *thr)
 {
     polling_and_return_number_of_wins(thr);
     return 50000; // TODO: temporary value, must be
-                  //       calculated from miner
-}
-
-static void spondoolies_shutdown(__maybe_unused struct thr_info *thr)
-{
+    //       calculated from miner
 }
 
 static void spond_flush_work(struct cgpu_info *cgpu)
 {
     struct spond_adapter *device = cgpu->device_data;
-    spondolies_handle_stale_jobs(cgpu);
+    pthread_mutex_lock(&device->lock);
+    int i = 0;
+    for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
+        if (device->my_jobs[i].cgminer_work != NULL &&
+                strcmp(
+                    device->my_jobs[i].cgminer_work->job_id,
+                    device->my_jobs[i].cgminer_work->pool->swork.job_id
+                    ) != 0) {
+            minergate_gen_packet stale_job;
+            stale_job.header.message_type = MINERGATE_MESSAGE_TYPE_STALE_JOB;
+            stale_job.header.message_size = sizeof(stale_job)-sizeof(stale_job.header);
+            stale_job.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
+            stale_job.rsv[0] = device->my_jobs[i].cgminer_work->id;
+            if (do_write(device->socket_fd, &stale_job, sizeof(stale_job)) != sizeof(stale_job)) {
+                quit(1, "broken conneciton with miner");
+            }
+            applog(LOG_DEBUG, "discard previous job[%s]\n", device->my_jobs[i].cgminer_work->job_id);
+            device->my_jobs[i].cgminer_work = NULL;
+        }
+    }
+    pthread_mutex_unlock(&device->lock);
 }
 
 static bool spondoolies_queue_full(struct cgpu_info *cgpu)
@@ -453,9 +326,6 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
     struct work *work = NULL;
     struct pool *pool = NULL;
     int id = 0;
-#if 0    
-    spondolies_handle_stale_jobs(cgpu);
-#endif
     /*
      * Lets check that if we can accept new job
      */
@@ -547,13 +417,9 @@ struct device_drv spondooliesv3_drv = {
     .drv_id = DRIVER_spondooliesv3,
     .dname = "Spondoolies-V3",
     .name = "SP3",
-    .get_api_stats = spondoolies_api_stats,
     .drv_detect = spondoolies_detect,
-    .reinit_device = spondoolies_init,
-    .thread_prepare = spondoolies_prepare,
     .hash_work = hash_queued_work,
     .scanwork = spond_scanhash,
-    .thread_shutdown = spondoolies_shutdown,
     .flush_work = spond_flush_work,
-	.queue_full = spondoolies_queue_full,
+    .queue_full = spondoolies_queue_full,
 };
