@@ -10,8 +10,8 @@
  *
  * Note that changing this SW will void your miners guaranty
  */
-#ifndef ____MINERGATE_LIB_H___
-#define ____MINERGATE_LIB_H___
+#ifndef __MG_PROTO_PARSER_V3_H__
+#define __MG_PROTO_PARSER_V3_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,21 +49,21 @@ typedef enum {
 #define SPOND_MAX_NONCE2_SETSIZE    32
 
 typedef struct {
-	uint32_t work_id_in_sw; //? not sure we need it
-	uint32_t difficulty;
-	uint32_t timestamp;
-	uint8_t  leading_zeroes;
-	uint8_t  ntime_limit; //? not sure we need it
-	uint8_t  ntime_offset; //? not sure we need it
-	uint8_t  resr1;
-	uint32_t coinbase_len;
-	uint8_t  coinbase[SPOND_MAX_COINBASE_LEN];
-	uint32_t nonce2_offset;
-	uint32_t merkles;
-	uint8_t  merkle[SPOND_MAX_MERKLE_LEN];
+    uint32_t work_id_in_sw; //? not sure we need it
+    uint32_t difficulty;
+    uint32_t timestamp;
+    uint8_t  leading_zeroes;
+    uint8_t  ntime_limit; //? not sure we need it
+    uint8_t  ntime_offset; //? not sure we need it
+    uint8_t  resr1;
+    uint32_t coinbase_len;
+    uint8_t  coinbase[SPOND_MAX_COINBASE_LEN];
+    uint32_t nonce2_offset;
+    uint32_t merkles;
+    uint8_t  merkle[SPOND_MAX_MERKLE_LEN];
     uint8_t  header_bin[128]; // TODO: we clone data on pool header
-                              // it is duplicating data with difficulty
-                              // timestamp
+    // it is duplicating data with difficulty
+    // timestamp
 } minergate_do_job_req;
 
 #define MAX_REQUESTS 1
@@ -85,22 +85,22 @@ typedef struct {
 typedef struct {
     uint32_t                message_type;
     uint32_t                message_size;
-	uint16_t                protocol_version;
+    uint16_t                protocol_version;
 } minergate_packet_header;
 
 typedef struct {
     minergate_packet_header header;
-	uint16_t                protocol_version;
-	uint8_t                 mask; // 0x01 = first request, 0x2 = drop old work
-	uint16_t                req_count;
-	minergate_do_job_req    req[MAX_REQUESTS]; // array of requests
+    uint16_t                protocol_version;
+    uint8_t                 mask; // 0x01 = first request, 0x2 = drop old work
+    uint16_t                req_count;
+    minergate_do_job_req    req[MAX_REQUESTS]; // array of requests
 } minergate_req_packet;
 
 typedef struct {
     minergate_packet_header header;
-	uint8_t                 gh_div_10_rate; // == 
-	uint16_t                rsp_count;
-	minergate_do_job_rsp    rsp[MAX_RESPONDS]; // array of responce
+    uint8_t                 gh_div_10_rate; // == 
+    uint16_t                rsp_count;
+    minergate_do_job_rsp    rsp[MAX_RESPONDS]; // array of responce
 } minergate_rsp_packet;
 
 typedef struct {
@@ -108,13 +108,7 @@ typedef struct {
     uint32_t                 rsv[4];
 } minergate_gen_packet;
 
-minergate_req_packet *allocate_minergate_packet_req_v3(uint8_t requester_id, uint8_t request_id);
-minergate_rsp_packet *allocate_minergate_packet_rsp_v3(uint8_t requester_id, uint8_t request_id);
-
-#define SPON_V3_SETWORK	0x1
-#define SPON_V3_GETNONCE2S 0x2
-
 int     do_read(int fd, void *buf, int len);
 int     do_write(int fd, const void *buf, int len);
 int     do_read_packet(int fd, void* buf, int len);
-#endif
+#endif //__MG_PROTO_PARSER_V3_H__

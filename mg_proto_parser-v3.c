@@ -12,9 +12,9 @@
  */
 
 /*
-	This file holds functions needed for minergate packet parsing/creation
-	by Zvisha Shteingart
-*/
+   This file holds functions needed for minergate packet parsing/creation
+   by Zvisha Shteingart
+   */
 #include <errno.h>
 
 #include "miner.h"
@@ -22,41 +22,41 @@
 #include "assert.h"
 
 int do_read(int fd, void *buf, int len) {
-	uint8_t *pos = (uint8_t*) buf;
-	int left = len;
-	while (left) {
-		fd_set set;
-		FD_ZERO(&set);
-		FD_SET(fd, &set);
-		int res;
-		if ((res = select(fd + 1, &set, NULL, NULL, NULL)) < 0) {
+    uint8_t *pos = (uint8_t*) buf;
+    int left = len;
+    while (left) {
+        fd_set set;
+        FD_ZERO(&set);
+        FD_SET(fd, &set);
+        int res;
+        if ((res = select(fd + 1, &set, NULL, NULL, NULL)) < 0) {
             applog(LOG_ERR, "%s:%d: select failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
-			return res;
-		}
-		if ((res = read(fd, pos, left)) < 0) {
+            return res;
+        }
+        if ((res = read(fd, pos, left)) < 0) {
             applog(LOG_ERR, "%s:%d: read failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
-			return res;
-		} else if (res == 0) {
+            return res;
+        } else if (res == 0) {
             applog(LOG_ERR, "%s:%d: fd=%d Connection Closed, quietly exiting...",
                     __FUNCTION__,
                     __LINE__,
                     fd);
-			return len - left;
-		}
-		left -= res;
-		pos += res;
-	}
-	return len;
+            return len - left;
+        }
+        left -= res;
+        pos += res;
+    }
+    return len;
 }
 
 int do_read_packet(int fd, void* buf, int len)
@@ -82,33 +82,33 @@ int do_read_packet(int fd, void* buf, int len)
 
 int do_write(int fd, const void *buf, int len)
 {
-	uint8_t *pos = (uint8_t*) buf;
-	int left = len;
-	while (left) {
-		fd_set set;
-		FD_ZERO(&set);
-		FD_SET(fd, &set);
-		int res;
-		if ((res = select(fd + 1, NULL, &set, NULL, NULL)) < 0) {
+    uint8_t *pos = (uint8_t*) buf;
+    int left = len;
+    while (left) {
+        fd_set set;
+        FD_ZERO(&set);
+        FD_SET(fd, &set);
+        int res;
+        if ((res = select(fd + 1, NULL, &set, NULL, NULL)) < 0) {
             applog(LOG_ERR, "%s:%d: select failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
-			return res;
-		}
-		if ((res = write(fd, pos, left)) < 0) {
+            return res;
+        }
+        if ((res = write(fd, pos, left)) < 0) {
             applog(LOG_ERR, "%s:%d: write failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
-			return res;
-		}
-		left -= res;
-		pos += res;
-	}
-	return len;
+            return res;
+        }
+        left -= res;
+        pos += res;
+    }
+    return len;
 }
