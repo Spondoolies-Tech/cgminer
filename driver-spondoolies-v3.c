@@ -33,7 +33,7 @@
 
 #include "compat.h"
 #include "miner.h"
-#include "mg_proto_parser-v3.h"
+#include "spond_pickaxe_proto.h"
 #include "driver-spondoolies-v3.h"
 
 #ifdef WORDS_BIGENDIAN

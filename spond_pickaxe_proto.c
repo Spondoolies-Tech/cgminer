@@ -18,7 +18,7 @@
 #include <errno.h>
 
 #include "miner.h"
-#include "mg_proto_parser-v3.h"
+#include "spond_pickaxe_proto.h"
 #include "assert.h"
 
 int do_read(int fd, void *buf, int len) {

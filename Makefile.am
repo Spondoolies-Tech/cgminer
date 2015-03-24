@@ -117,7 +117,7 @@ endif
 
 if HAS_SPONDOOLIES_V3
 cgminer_SOURCES += driver-spondoolies-v3.c driver-spondoolies-v3.h \
-		   mg_proto_parser-v3.c mg_proto_parser-v3.h
+		   spond_pickaxe_proto.c spond_pickaxe_proto.h
 endif
 
 if HAS_BAB

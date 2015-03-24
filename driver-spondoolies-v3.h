@@ -12,7 +12,7 @@
 #define __DRIVER_SPONDOOLIES_V3_H__
 
 #include "miner.h"
-#include "mg_proto_parser-v3.h"
+#include "spond_pickaxe_proto.h"
 
 #define MAX_JOBS_IN_MINERGATE   1 
 
