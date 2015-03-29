@@ -1456,6 +1456,7 @@ enum send_ret {
  * be done under stratum lock except when first establishing the socket */
 static enum send_ret __stratum_send(struct pool *pool, char *s, ssize_t len)
 {
+  printf("ZSND:%s\n", s);
 	SOCKETTYPE sock = pool->sock;
 	ssize_t ssent = 0;
 
@@ -1673,6 +1674,7 @@ char *recv_line(struct pool *pool)
 	pool->cgminer_pool_stats.bytes_received += len;
 	pool->cgminer_pool_stats.net_bytes_received += len;
 out:
+  printf("ZGOT:%s\n", sret);
 	if (!sret)
 		clear_sock(pool);
 	else if (opt_protocol)
