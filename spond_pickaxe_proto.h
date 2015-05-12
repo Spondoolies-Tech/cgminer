@@ -40,13 +40,20 @@ typedef enum {
     MINERGATE_MESSAGE_TYPE_RSP_REQ      = 0xCAFE5555,
     MINERGATE_MESSAGE_TYPE_RSP_NODATA   = 0xCAFE6666,
     MINERGATE_MESSAGE_TYPE_RSP_DATA     = 0xCAFE7777,
-    MINERGATE_MESSAGE_TYPE_STALE_JOB    = 0xCAFE8888
+    MINERGATE_MESSAGE_TYPE_STALE_JOB    = 0xCAFE8888,
+    MINERGATE_MESSAGE_TYPE_PUSH_JOBPACK_REQ  = 0xCAFE9999,
+    MINERGATE_MESSAGE_TYPE_PUSH_JOBPACK_RSP  = 0xCAFEAAAA    
+    
 } MINERGATE_MESSAGE_TYPE;
 
 #define SPOND_MAX_COINBASE_LEN      1024
 #define SPOND_MAX_MERKLE_LEN        1024
 #define SPOND_MAX_MERKLES           (SPOND_MAX_MERKLE_LEN>>5) // each merkle is 32 bytes
 #define SPOND_MAX_NONCE2_SETSIZE    32
+
+#define JOBPACK_SIZE            4
+#define MIDSTATE_STATES         8
+
 
 typedef struct {
     uint32_t work_id_in_sw; //? not sure we need it
@@ -64,9 +71,29 @@ typedef struct {
     uint8_t  header_bin[128]; // TODO: we clone data on pool header
     // it is duplicating data with difficulty
     // timestamp
-} minergate_do_job_req;
+} minergate_do_mrkljob_req;
+
+
+
+typedef struct {
+   uint32_t    work_id_in_sw;
+   uint32_t    difficulty;
+   uint32_t    timestamp;
+   uint32_t    mrkle_root;
+   uint32_t    midstate[JOBPACK_SIZE][MIDSTATE_STATES];
+   uint32_t    leading_zeroes;
+   uint8_t     ntime_limit;
+   uint8_t     resr2;
+   uint8_t     nmidstates;
+   uint8_t     resr1;
+   uint32_t    winner_nonce;
+} minergate_jobpack_req;
+
+
 
 #define MAX_REQUESTS 1
+#define MAX_JOBPACK_REQUESTS 100
+
 #define MAX_RESPONDS 100
 
 typedef struct {
@@ -93,7 +120,7 @@ typedef struct {
     uint16_t                protocol_version;
     uint8_t                 mask; // 0x01 = first request, 0x2 = drop old work
     uint16_t                req_count;
-    minergate_do_job_req    req[MAX_REQUESTS]; // array of requests
+    minergate_do_mrkljob_req    req[MAX_REQUESTS]; // array of requests
 } minergate_req_packet;
 
 typedef struct {
@@ -107,6 +134,16 @@ typedef struct {
     minergate_packet_header header;
     uint32_t                 rsv[4];
 } minergate_gen_packet;
+
+
+typedef struct {
+    minergate_packet_header   header;
+    uint16_t                  protocol_version;
+    uint8_t                   mask; // 0x01 = first request, 0x2 = drop old work
+    uint16_t                  req_count;
+    minergate_jobpack_req     req[MAX_JOBPACK_REQUESTS]; // array of requests
+} minergate_req_jobpack_packet;
+
 
 int     do_read(int fd, void *buf, int len);
 int     do_write(int fd, const void *buf, int len);

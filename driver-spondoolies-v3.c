@@ -143,7 +143,7 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
     applog(LOG_DEBUG, "%s %s done", spondooliesv3_drv.dname, __FUNCTION__);
 }
 
-static void fill_minergate_request(minergate_do_job_req* job, struct cgpu_info *cgpu, struct work *cg_work)
+static void fill_minergate_request(minergate_do_mrkljob_req* job, struct cgpu_info *cgpu, struct work *cg_work)
 {
     int i;
     uint32_t converted[2];
@@ -153,7 +153,7 @@ static void fill_minergate_request(minergate_do_job_req* job, struct cgpu_info *
     /*
      * fill the job
      */
-    memset(job, 0, sizeof(minergate_do_job_req));
+    memset(job, 0, sizeof(minergate_do_mrkljob_req));
     job->work_id_in_sw = cg_work->id;
     memcpy(
             bytes,
