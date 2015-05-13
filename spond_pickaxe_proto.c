@@ -16,8 +16,9 @@
    by Zvisha Shteingart
    */
 #include <errno.h>
+#include <unistd.h>
 
-#include "miner.h"
+//#include "miner.h"
 #include "spond_pickaxe_proto.h"
 #include "assert.h"
 
@@ -30,27 +31,33 @@ int do_read(int fd, void *buf, int len) {
         FD_SET(fd, &set);
         int res;
         if ((res = select(fd + 1, &set, NULL, NULL, NULL)) < 0) {
+            /*
             applog(LOG_ERR, "%s:%d: select failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
+                    */
             return res;
         }
         if ((res = read(fd, pos, left)) < 0) {
+            /*
             applog(LOG_ERR, "%s:%d: read failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
+                    */
             return res;
         } else if (res == 0) {
+        /*
             applog(LOG_ERR, "%s:%d: fd=%d Connection Closed, quietly exiting...",
                     __FUNCTION__,
                     __LINE__,
                     fd);
+                    */
             return len - left;
         }
         left -= res;
@@ -63,17 +70,21 @@ int do_read_packet(int fd, void* buf, int len)
 {
     minergate_packet_header* header = (minergate_packet_header*) buf;
     if (do_read(fd, header, sizeof(minergate_packet_header)) != sizeof(minergate_packet_header)) {
+        /*
         applog(LOG_ERR, "%s:%d: fd=%d do_read header failed",
                 __FUNCTION__,
                 __LINE__,
                 fd);
+                */
         return 0;
     }
     if (header->message_size+sizeof(minergate_packet_header) > len) {
+        /*
         applog(LOG_ERR, "%s:%d: fd=%d buf is too small or message header data is bad",
                 __FUNCTION__,
                 __LINE__,
                 fd);
+                */
         return 0;
     }
     int res = do_read(fd, (uint8_t*)buf+sizeof(minergate_packet_header), header->message_size);
@@ -90,21 +101,25 @@ int do_write(int fd, const void *buf, int len)
         FD_SET(fd, &set);
         int res;
         if ((res = select(fd + 1, NULL, &set, NULL, NULL)) < 0) {
+            /*
             applog(LOG_ERR, "%s:%d: select failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
+                    */
             return res;
         }
         if ((res = write(fd, pos, left)) < 0) {
+            /*
             applog(LOG_ERR, "%s:%d: write failed fd=%d error=%s(%d)",
                     __FUNCTION__,
                     __LINE__,
                     fd,
                     strerror(errno),
                     errno);
+                    */
             return res;
         }
         left -= res;
