@@ -110,7 +110,7 @@ static int init_socket()
     /* start with a clean address structure */
     memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX;
-    sprintf(address.sun_path, MINERGATE_SOCKET_FILE);
+    sprintf(address.sun_path, pxgate_SOCKET_FILE);
     if(connect(socket_fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un))) {
         applog(LOG_ERR, "%s: socket connect error[%d][%s]",
                 spondooliesv3_drv.dname,
@@ -143,7 +143,7 @@ static void spondoolies_detect(__maybe_unused bool hotplug)
     applog(LOG_DEBUG, "%s %s done", spondooliesv3_drv.dname, __FUNCTION__);
 }
 
-static void fill_minergate_request(minergate_do_mrkljob_req* job, struct cgpu_info *cgpu, struct work *cg_work)
+static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cgpu, struct work *cg_work)
 {
     int i;
     uint32_t converted[2];
@@ -153,7 +153,7 @@ static void fill_minergate_request(minergate_do_mrkljob_req* job, struct cgpu_in
     /*
      * fill the job
      */
-    memset(job, 0, sizeof(minergate_do_mrkljob_req));
+    memset(job, 0, sizeof(pxgate_do_mrkljob_req));
     job->work_id_in_sw = cg_work->id;
     memcpy(
             bytes,
@@ -211,35 +211,35 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
     /*
      * send request to miner gateway to get wins results
      */
-    minergate_gen_packet req_rsp;
-    req_rsp.header.message_type = MINERGATE_MESSAGE_TYPE_RSP_REQ;
+    pxgate_gen_packet req_rsp;
+    req_rsp.header.message_type = pxgate_MESSAGE_TYPE_RSP_REQ;
     req_rsp.header.message_size = sizeof(req_rsp)-sizeof(req_rsp.header);
-    req_rsp.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
+    req_rsp.header.protocol_version = pxgate_PROTOCOL_VERSION;
     do_write(device->socket_fd, &req_rsp, sizeof(req_rsp)); 
     /* 
      * read result
      */
     // OK, since we don't know message size, lets take biggest
-    void *message = calloc(1, sizeof(minergate_rsp_packet));
-    int size =  do_read_packet(device->socket_fd, message, sizeof(minergate_rsp_packet));
+    void *message = calloc(1, sizeof(pxgate_rsp_packet));
+    int size =  do_read_packet(device->socket_fd, message, sizeof(pxgate_rsp_packet));
     if (size == 0) {
         quit(1, "%s: Ooops returned bad packet from cgminer", spondooliesv3_drv.dname);
         free(message);
         return 0;
     }
     // lets check the header
-    minergate_packet_header *header = (minergate_packet_header*) message;
+    pxgate_packet_header *header = (pxgate_packet_header*) message;
     switch (header->message_type) {
-        case MINERGATE_MESSAGE_TYPE_RSP_NODATA:
+        case pxgate_MESSAGE_TYPE_RSP_NODATA:
             {
                 free(message);
                 return 0;
             }
-        case MINERGATE_MESSAGE_TYPE_RSP_DATA:
+        case pxgate_MESSAGE_TYPE_RSP_DATA:
             {
                 int i;
                 int j;
-                minergate_rsp_packet *rsp = (minergate_rsp_packet*) message;
+                pxgate_rsp_packet *rsp = (pxgate_rsp_packet*) message;
                 // TODO: handle rsp->gh_div_10_rate
                 int results = rsp->rsp_count;
                 for (i = 0; i < results; ++i) {
@@ -314,10 +314,10 @@ static void spond_flush_work(struct cgpu_info *cgpu)
     int i = 0;
     for ( ; i < MAX_JOBS_IN_MINERGATE; i++) {
         if (device->my_jobs[i].cgminer_work != NULL) {
-            minergate_gen_packet stale_job;
-            stale_job.header.message_type = MINERGATE_MESSAGE_TYPE_STALE_JOB;
+            pxgate_gen_packet stale_job;
+            stale_job.header.message_type = pxgate_MESSAGE_TYPE_STALE_JOB;
             stale_job.header.message_size = sizeof(stale_job)-sizeof(stale_job.header);
-            stale_job.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
+            stale_job.header.protocol_version = pxgate_PROTOCOL_VERSION;
             stale_job.rsv[0] = device->my_jobs[i].cgminer_work->id;
             if (do_write(device->socket_fd, &stale_job, sizeof(stale_job)) != sizeof(stale_job)) {
                 quit(1, "broken conneciton with miner");
@@ -375,23 +375,22 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
     /*
      * fill job and send it to miner
      */
-    minergate_req_packet req_packet;
+    pxgate_req_packet req_packet;
     memset(&req_packet, 0, sizeof(req_packet));
-    req_packet.header.protocol_version = MINERGATE_PROTOCOL_VERSION;
-    req_packet.header.message_type = MINERGATE_MESSAGE_TYPE_JOB_REQ;
+    req_packet.header.protocol_version = pxgate_PROTOCOL_VERSION;
+    req_packet.header.message_type = pxgate_MESSAGE_TYPE_JOB_REQ;
     req_packet.header.message_size = sizeof(req_packet)-sizeof(req_packet.header);
     // TODO: use MACRO
     req_packet.mask = 0x01; // 0x01 = first request, 0x2 = drop old work
-    req_packet.req_count = 1; // one job only
     // currently we will send only one job
     cg_wlock(&pool->data_lock);
-    fill_minergate_request(&req_packet.req[0], cgpu, work);
+    fill_pxgate_request(&req_packet.req, cgpu, work);
     cg_wunlock(&pool->data_lock);
     do_write(device->socket_fd, &req_packet, sizeof(req_packet));
     /*
      * read the response from miner
      */
-    minergate_gen_packet rsp_packet;
+    pxgate_gen_packet rsp_packet;
     uint32_t size = 0;
     if ((size = do_read_packet(device->socket_fd, &rsp_packet, sizeof(rsp_packet))) != sizeof(rsp_packet)) {
         quit(1, "%s: critical error, packet sent from miner is bad received size[%u] expected [%u], quiting...",
@@ -401,11 +400,11 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
             );
     }
     switch (rsp_packet.header.message_type) {
-        case MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK:
-            applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK", spondooliesv3_drv.dname);
+        case pxgate_MESSAGE_TYPE_JOB_REQ_ACK:
+            applog(LOG_DEBUG, "%s pxgate_MESSAGE_TYPE_JOB_REQ_ACK", spondooliesv3_drv.dname);
             break;
-        case MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ:
-            applog(LOG_DEBUG, "%s MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ", spondooliesv3_drv.dname);
+        case pxgate_MESSAGE_TYPE_JOB_REQ_REJ:
+            applog(LOG_DEBUG, "%s pxgate_MESSAGE_TYPE_JOB_REQ_REJ", spondooliesv3_drv.dname);
             break;
         default:
             applog(LOG_ERR, "%s unexpected type[%x]", spondooliesv3_drv.dname, rsp_packet.header.message_type);

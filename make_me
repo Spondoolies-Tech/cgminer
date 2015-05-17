@@ -1,6 +1,5 @@
 ./autogen.sh
-D=/mnt/drive/all-gits-sp30/tyg-git/sw/vladik/buildroot-2013.05/
+D=/mnt/drive/sp60/sp60/packages/buildroot/src/
 ./configure --without-curses --disable-libtool-lock --enable-spondooliesv3 --host=arm-linux CC=arm-none-linux-gnueabi-gcc CFLAGS="-O3 -I${D}output/build/libcurl-7.28.1/include" LIBCURL_LIBS="${D}output/build/libcurl-7.28.1/./lib/.libs/libcurl.a"  LIBS="${D}output/build/openssl-1.0.1e/libssl.a ${D}output/build/openssl-1.0.1e/libcrypto.a -L${D}output/build/zlib-1.2.7 -lz -ldl"
 
 make -j 4
-cp cgminer ~/shared/cgminer

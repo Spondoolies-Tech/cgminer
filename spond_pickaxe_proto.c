@@ -68,8 +68,8 @@ int do_read(int fd, void *buf, int len) {
 
 int do_read_packet(int fd, void* buf, int len)
 {
-    minergate_packet_header* header = (minergate_packet_header*) buf;
-    if (do_read(fd, header, sizeof(minergate_packet_header)) != sizeof(minergate_packet_header)) {
+    pxgate_packet_header* header = (pxgate_packet_header*) buf;
+    if (do_read(fd, header, sizeof(pxgate_packet_header)) != sizeof(pxgate_packet_header)) {
         /*
         applog(LOG_ERR, "%s:%d: fd=%d do_read header failed",
                 __FUNCTION__,
@@ -78,7 +78,7 @@ int do_read_packet(int fd, void* buf, int len)
                 */
         return 0;
     }
-    if (header->message_size+sizeof(minergate_packet_header) > len) {
+    if (header->message_size+sizeof(pxgate_packet_header) > len) {
         /*
         applog(LOG_ERR, "%s:%d: fd=%d buf is too small or message header data is bad",
                 __FUNCTION__,
@@ -87,8 +87,8 @@ int do_read_packet(int fd, void* buf, int len)
                 */
         return 0;
     }
-    int res = do_read(fd, (uint8_t*)buf+sizeof(minergate_packet_header), header->message_size);
-    return res > 0 ? (res + sizeof(minergate_packet_header)) : res;
+    int res = do_read(fd, (uint8_t*)buf+sizeof(pxgate_packet_header), header->message_size);
+    return res > 0 ? (res + sizeof(pxgate_packet_header)) : res;
 }
 
 int do_write(int fd, const void *buf, int len)

@@ -26,32 +26,32 @@
 #define passert assert
 #endif
 
-#define MINERGATE_PROTOCOL_VERSION_MINOR 1
-#define MINERGATE_PROTOCOL_VERSION_MAJOR 6
-#define MINERGATE_PROTOCOL_VERSION       ((MINERGATE_PROTOCOL_VERSION_MAJOR<<8)|(MINERGATE_PROTOCOL_VERSION_MINOR))
+#define pxgate_PROTOCOL_VERSION_MINOR 1
+#define pxgate_PROTOCOL_VERSION_MAJOR 6
+#define pxgate_PROTOCOL_VERSION       ((pxgate_PROTOCOL_VERSION_MAJOR<<8)|(pxgate_PROTOCOL_VERSION_MINOR))
 
-#define MINERGATE_SOCKET_FILE "/tmp/connection_pipe"
+#define pxgate_SOCKET_FILE "/tmp/connection_pipe"
 
 typedef enum {
-    MINERGATE_MESSAGE_TYPE_CONNECT      = 0xCAFE1111,
-    MINERGATE_MESSAGE_TYPE_JOB_REQ      = 0xCAFE2222,
-    MINERGATE_MESSAGE_TYPE_JOB_REQ_REJ  = 0xCAFE3333,
-    MINERGATE_MESSAGE_TYPE_JOB_REQ_ACK  = 0xCAFE4444,
-    MINERGATE_MESSAGE_TYPE_RSP_REQ      = 0xCAFE5555,
-    MINERGATE_MESSAGE_TYPE_RSP_NODATA   = 0xCAFE6666,
-    MINERGATE_MESSAGE_TYPE_RSP_DATA     = 0xCAFE7777,
-    MINERGATE_MESSAGE_TYPE_STALE_JOB    = 0xCAFE8888,
-    MINERGATE_MESSAGE_TYPE_PUSH_JOBPACK_REQ  = 0xCAFE9999,
-    MINERGATE_MESSAGE_TYPE_PUSH_JOBPACK_RSP  = 0xCAFEAAAA    
+    pxgate_MESSAGE_TYPE_CONNECT      = 0xCAFE1111,
+    pxgate_MESSAGE_TYPE_JOB_REQ      = 0xCAFE2222,
+    pxgate_MESSAGE_TYPE_JOB_REQ_REJ  = 0xCAFE3333,
+    pxgate_MESSAGE_TYPE_JOB_REQ_ACK  = 0xCAFE4444,
+    pxgate_MESSAGE_TYPE_RSP_REQ      = 0xCAFE5555,
+    pxgate_MESSAGE_TYPE_RSP_NODATA   = 0xCAFE6666,
+    pxgate_MESSAGE_TYPE_RSP_DATA     = 0xCAFE7777,
+    pxgate_MESSAGE_TYPE_STALE_JOB    = 0xCAFE8888,
+    pxgate_MESSAGE_TYPE_PUSH_JOBPACK_REQ  = 0xCAFE9999,
+    pxgate_MESSAGE_TYPE_PUSH_JOBPACK_RSP  = 0xCAFEAAAA    
     
-} MINERGATE_MESSAGE_TYPE;
+} pxgate_MESSAGE_TYPE;
 
 #define SPOND_MAX_COINBASE_LEN      1024
 #define SPOND_MAX_MERKLE_LEN        1024
 #define SPOND_MAX_MERKLES           (SPOND_MAX_MERKLE_LEN>>5) // each merkle is 32 bytes
 #define SPOND_MAX_NONCE2_SETSIZE    32
 
-#define JOBPACK_SIZE            4
+#define JOBPACK_SIZE            2
 #define MIDSTATE_STATES         8
 
 
@@ -63,20 +63,21 @@ typedef struct {
     uint8_t  ntime_limit; //? not sure we need it
     uint8_t  ntime_offset; //? not sure we need it
     uint8_t  resr1;
-    uint32_t coinbase_len;
+    uint32_t coinbase_len; // in bytes
     uint8_t  coinbase[SPOND_MAX_COINBASE_LEN];
     uint32_t nonce2_offset;
-    uint32_t merkles;
+    uint32_t merkles; // in 32 byte (256 bit)
     uint8_t  merkle[SPOND_MAX_MERKLE_LEN];
     uint8_t  header_bin[128]; // TODO: we clone data on pool header
     // it is duplicating data with difficulty
     // timestamp
-} minergate_do_mrkljob_req;
+} pxgate_do_mrkljob_req;
 
 
 
 typedef struct {
    uint32_t    work_id_in_sw;
+   uint32_t    work_id_in_hw;   
    uint32_t    difficulty;
    uint32_t    timestamp;
    uint32_t    mrkle_root;
@@ -87,7 +88,7 @@ typedef struct {
    uint8_t     nmidstates;
    uint8_t     resr1;
    uint32_t    winner_nonce;
-} minergate_jobpack_req;
+} pxgate_jobpack_req;
 
 
 
@@ -107,41 +108,41 @@ typedef struct {
     uint8_t  res;            // 0 = done, 1 = overflow, 2 = dropped bist
     uint8_t  resrv1;
     uint8_t  resrv2;
-} minergate_do_job_rsp;
+} pxgate_do_job_rsp;
 
 typedef struct {
     uint32_t                message_type;
     uint32_t                message_size;
     uint16_t                protocol_version;
-} minergate_packet_header;
+} pxgate_packet_header;
 
 typedef struct {
-    minergate_packet_header header;
+    pxgate_packet_header header;
     uint16_t                protocol_version;
     uint8_t                 mask; // 0x01 = first request, 0x2 = drop old work
-    minergate_do_mrkljob_req    req; // array of requests
-} minergate_req_packet;
+    pxgate_do_mrkljob_req    req; // array of requests
+} pxgate_req_packet;
 
 typedef struct {
-    minergate_packet_header header;
+    pxgate_packet_header header;
     uint8_t                 gh_div_10_rate; // == 
     uint16_t                rsp_count;
-    minergate_do_job_rsp    rsp[MAX_RESPONDS]; // array of responce
-} minergate_rsp_packet;
+    pxgate_do_job_rsp    rsp[MAX_RESPONDS]; // array of responce
+} pxgate_rsp_packet;
 
 typedef struct {
-    minergate_packet_header header;
+    pxgate_packet_header header;
     uint32_t                 rsv[4];
-} minergate_gen_packet;
+} pxgate_gen_packet;
 
 
 typedef struct {
-    minergate_packet_header   header;
+    pxgate_packet_header   header;
     uint16_t                  protocol_version;
     uint8_t                   mask; // 0x01 = first request, 0x2 = drop old work
     uint16_t                  req_count;
-    minergate_jobpack_req     req[MAX_JOBPACK_REQUESTS]; // array of requests
-} minergate_req_jobpack_packet;
+    pxgate_jobpack_req     req[MAX_JOBPACK_REQUESTS]; // array of requests
+} pxgate_req_jobpack_packet;
 
 
 int     do_read(int fd, void *buf, int len);

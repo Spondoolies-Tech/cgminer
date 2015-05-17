@@ -73,7 +73,7 @@ typedef struct {
 	uint8_t mask; // 0x01 = first request, 0x2 = drop old work
 	uint16_t magic; // 0xcafe
 	uint16_t req_count;
-	minergate_do_job_req req[MAX_REQUESTS]; // array of requests
+	minergate_do_job_req req; // array of requests
 } minergate_req_packet;
 
 typedef struct {
