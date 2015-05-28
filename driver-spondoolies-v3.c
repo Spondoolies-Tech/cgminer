@@ -206,6 +206,7 @@ static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cg
 
 static int polling_and_return_number_of_wins(struct thr_info *thr)
 {
+    printf("*ZVISHA*\n");
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
     /*
@@ -302,6 +303,7 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
 
 static int64_t spond_scanhash(struct thr_info *thr)
 {
+    printf("*ZVISHA*\n");
     polling_and_return_number_of_wins(thr);
     return 50000; // TODO: temporary value, must be
     //       calculated from miner
@@ -416,6 +418,7 @@ static bool spondoolies_queue_full(struct cgpu_info *cgpu)
     pthread_mutex_lock(&device->lock);
     spondoolies_push_work_to_queue(device, work);
     pthread_mutex_unlock(&device->lock);
+    
     return true;
 }
 

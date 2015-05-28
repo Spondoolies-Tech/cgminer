@@ -82,7 +82,11 @@ typedef struct {
    uint32_t    timestamp;
    uint32_t    mrkle_root;
    uint32_t    midstate[JOBPACK_SIZE][MIDSTATE_STATES];
-   uint32_t    leading_zeroes;
+   uint64_t    nonce2_jp_win[JOBPACK_SIZE]; // enonce
+   uint8_t     nonce2_jp_len[JOBPACK_SIZE];
+   uint32_t    mrkl_jp_root[JOBPACK_SIZE];   
+   uint32_t    leading_zeroes_value;
+   uint32_t    leading_zeroes_reg;   
    uint8_t     ntime_limit;
    uint8_t     resr2;
    uint8_t     nmidstates;
@@ -103,7 +107,7 @@ typedef struct {
     uint32_t winner_nonce;
     uint8_t  nonce2_len;
     uint64_t nonce2;        // winner enonce as well
-    uint8_t  chip_id;
+    //uint8_t  chip_id;
     uint8_t  ntime_offset;
     uint8_t  res;            // 0 = done, 1 = overflow, 2 = dropped bist
     uint8_t  resrv1;
