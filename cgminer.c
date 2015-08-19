@@ -93,6 +93,10 @@ char *curly = ":D";
 #include "driver-spondoolies-sp30.h"
 #endif
 
+#ifdef USE_SP60
+#include "driver-spondoolies-sp60.h"
+#endif
+
 #ifdef USE_BLOCK_ERUPTER
 #include "driver-blockerupter.h"
 #endif
@@ -1911,6 +1915,9 @@ static char *opt_verusage_and_exit(const char *extra)
 #endif
 #ifdef USE_SP30
         "sp30 "
+#endif
+#ifdef USE_SP60
+        "sp60 "
 #endif
 
 		"mining support.\n"
@@ -6754,9 +6761,9 @@ void set_target(unsigned char *dest_target, double diff)
 	cg_memcpy(dest_target, target, 32);
 }
 
-#if defined (USE_AVALON2) || defined (USE_AVALON4) || defined (USE_HASHRATIO)
+#if defined (USE_AVALON2) || defined (USE_AVALON4) || defined (USE_HASHRATIO) || defined (USE_SP60)
 bool submit_nonce2_nonce(struct thr_info *thr, struct pool *pool, struct pool *real_pool,
-			 uint32_t nonce2, uint32_t nonce,  uint32_t ntime)
+			 uint64_t nonce2, uint32_t nonce,  uint32_t ntime)
 {
 	const int thr_id = thr->id;
 	struct cgpu_info *cgpu = thr->cgpu;
