@@ -143,9 +143,11 @@ enum sub_ident {
 	IDENT_AMU,
 	IDENT_ANT,
 	IDENT_ANU,
-	IDENT_AS2,
+	IDENT_AS3,
+	IDENT_AU3,
 	IDENT_AVA,
 	IDENT_AV2,
+	IDENT_AV4,
 	IDENT_BAJ,
 	IDENT_BAL,
 	IDENT_BAM,
@@ -195,7 +197,7 @@ struct usb_find_devices {
 #define LATENCY_UNUSED 0
 #define LATENCY_STD 32
 #define LATENCY_ANTS1 10
-#define LATENCY_ANTS2 10
+#define LATENCY_ANTS3 10
 
 enum usb_types {
 	USB_TYPE_STD = 0,
@@ -352,6 +354,7 @@ struct cg_usb_info {
 	USB_ADD_COMMAND(C_ENABLE_UART, "EnableUART") \
 	USB_ADD_COMMAND(C_ANU_SEND_CMD, "ANUSendcmd") \
 	USB_ADD_COMMAND(C_ANU_SEND_RDREG, "ANUSendrdreg") \
+	USB_ADD_COMMAND(C_ANU_SEND_VOLT, "ANUSendvolt") \
 	USB_ADD_COMMAND(C_BB_SET_VOLTAGE, "SetCoreVoltage") \
 	USB_ADD_COMMAND(C_BB_GET_VOLTAGE, "GetCoreVoltage") \
 	USB_ADD_COMMAND(C_BF_RESET, "BFReset") \
@@ -378,6 +381,8 @@ struct cg_usb_info {
 	USB_ADD_COMMAND(C_ATMEL_CLOSE, "AtmelClose") \
 	USB_ADD_COMMAND(C_AVA2_READ, "Ava2Read") \
 	USB_ADD_COMMAND(C_AVA2_WRITE, "Ava2Write") \
+	USB_ADD_COMMAND(C_AVA4_READ, "Ava4Read") \
+	USB_ADD_COMMAND(C_AVA4_WRITE, "Ava4Write") \
         USB_ADD_COMMAND(C_BET_WRITE, "BlockErupterWrite") \
         USB_ADD_COMMAND(C_BET_READ, "BlockErupterRead") \
 	USB_ADD_COMMAND(C_BF1_REQINFO, "BF1RequestInfo") \

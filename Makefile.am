@@ -25,7 +25,7 @@ bin_PROGRAMS	= cgminer
 cgminer_LDFLAGS	= $(PTHREAD_FLAGS)
 cgminer_LDADD	= $(DLOPEN_FLAGS) @LIBCURL_LIBS@ @JANSSON_LIBS@ @PTHREAD_LIBS@ \
 		  @NCURSES_LIBS@ @PDCURSES_LIBS@ @WS2_LIBS@ \
-		  @LIBUSB_LIBS@ @MM_LIBS@ @RT_LIBS@ \
+		  @LIBUSB_LIBS@ @MM_LIBS@ @RT_LIBS@ @LIBSYSTEMD_LIBS@ \
 		  @MATH_LIBS@ lib/libgnu.a ccan/libccan.a
 
 cgminer_CPPFLAGS += -I$(top_builddir)/lib -I$(top_srcdir)/lib
@@ -138,6 +138,10 @@ if HAS_AVALON2
 cgminer_SOURCES += driver-avalon2.c driver-avalon2.h
 endif
 
+if HAS_AVALON4
+cgminer_SOURCES += driver-avalon4.c driver-avalon4.h
+endif
+
 if HAS_MINION
 cgminer_SOURCES += driver-minion.c
 endif
@@ -147,6 +151,10 @@ cgminer_SOURCES += driver-bitmain.c driver-bitmain.h
 endif
 
 if HAS_ANT_S2
+cgminer_SOURCES += driver-bitmain.c driver-bitmain.h
+endif
+
+if HAS_ANT_S3
 cgminer_SOURCES += driver-bitmain.c driver-bitmain.h
 endif
 

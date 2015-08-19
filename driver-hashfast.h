@@ -16,21 +16,21 @@
 #include "elist.h"
 #include "hf_protocol.h"
 
-int opt_hfa_ntime_roll;
-int opt_hfa_hash_clock;
-int opt_hfa_overheat;
-int opt_hfa_target;
-bool opt_hfa_pll_bypass;
-bool opt_hfa_dfu_boot;
-int opt_hfa_fan_default;
-int opt_hfa_fan_max;
-int opt_hfa_fan_min;
-int opt_hfa_fail_drop;
-bool opt_hfa_noshed;
+extern int opt_hfa_ntime_roll;
+extern int opt_hfa_hash_clock;
+extern int opt_hfa_overheat;
+extern int opt_hfa_target;
+extern bool opt_hfa_pll_bypass;
+extern bool opt_hfa_dfu_boot;
+extern int opt_hfa_fan_default;
+extern int opt_hfa_fan_max;
+extern int opt_hfa_fan_min;
+extern int opt_hfa_fail_drop;
+extern bool opt_hfa_noshed;
 
-char *set_hfa_fan(char *arg);
-char *opt_hfa_name;
-char *opt_hfa_options;
+extern char *set_hfa_fan(char *arg);
+extern char *opt_hfa_name;
+extern char *opt_hfa_options;
 
 #define HASHFAST_MINER_THREADS 1
 #define HFA_CLOCK_DEFAULT 550
@@ -43,6 +43,13 @@ char *opt_hfa_options;
 #define HFA_FAN_DEFAULT 33
 #define HFA_FAN_MAX 85
 #define HFA_FAN_MIN 5
+#define HFA_VOLTAGE_MAX 1000
+#define HFA_VOLTAGE_MIN 500
+#define HFA_MAGIC_SETTINGS_VALUE 0x42AA
+
+// # Factory Operation Codes
+#define OP_SETTINGS             55      // Read or write settings
+#define OP_POWER                57
 
 // Matching fields for hf_statistics, but large #s for local accumulation, per-die
 struct hf_long_statistics {
@@ -145,6 +152,7 @@ struct hashfast_info {
 	int fanspeed;                               // Fanspeed in percent
 	int last_die_adjusted;
 	int clock_offset;
+	int hash_voltage;                           // Hash voltage to use, in mV
 
 	pthread_t read_thr;
 	time_t last_restart;

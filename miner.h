@@ -46,10 +46,12 @@ extern char *curly;
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #elif defined __GNUC__
-# ifndef WIN32
-#  define alloca __builtin_alloca
-# else
-#  include <malloc.h>
+# ifndef __FreeBSD__ /* FreeBSD has below #define in stdlib.h */
+#  ifndef WIN32
+#   define alloca __builtin_alloca
+#  else
+#   include <malloc.h>
+#  endif
 # endif
 #elif defined _AIX
 # define alloca __alloca
@@ -220,6 +222,9 @@ static inline int fsync (int fd)
 #define MAX(x, y)	((x) > (y) ? (x) : (y))
 #endif
 
+#define MACSTR(_num) MACSTR2(_num)
+#define MACSTR2(__num) #__num
+
 /* Put avalon last to make it the last device it tries to detect to prevent it
  * trying to claim same chip but different devices. Adding a device here will
  * update all macros in the code that use the *_PARSE_COMMANDS macros for each
@@ -231,8 +236,10 @@ static inline int fsync (int fd)
 #define ASIC_PARSE_COMMANDS(DRIVER_ADD_COMMAND) \
 	DRIVER_ADD_COMMAND(ants1) \
 	DRIVER_ADD_COMMAND(ants2) \
+	DRIVER_ADD_COMMAND(ants3) \
 	DRIVER_ADD_COMMAND(avalon) \
 	DRIVER_ADD_COMMAND(avalon2) \
+	DRIVER_ADD_COMMAND(avalon4) \
 	DRIVER_ADD_COMMAND(bflsc) \
 	DRIVER_ADD_COMMAND(bitfury) \
 	DRIVER_ADD_COMMAND(blockerupter) \
@@ -435,6 +442,7 @@ struct cgpu_info {
 	struct cg_usb_device *usbdev;
 	struct cg_usb_info usbinfo;
 	bool blacklisted;
+	bool nozlp; // Device prefers no zero length packet
 #endif
 #if defined(USE_AVALON) || defined(USE_AVALON2)
 	struct work **works;
@@ -494,6 +502,7 @@ struct cgpu_info {
 	time_t last_share_pool_time;
 	double last_share_diff;
 	time_t last_device_valid_work;
+	uint32_t last_nonce;
 
 	time_t device_last_well;
 	time_t device_last_not_well;
@@ -568,7 +577,7 @@ static inline void string_elist_add(const char *s, struct list_head *head)
 {
 	struct string_elist *n;
 
-	n = calloc(1, sizeof(*n));
+	n = cgcalloc(1, sizeof(*n));
 	n->string = strdup(s);
 	n->free_me = true;
 	list_add_tail(&n->list, head);
@@ -782,7 +791,7 @@ static inline void _mutex_unlock_noyield(pthread_mutex_t *lock, const char *file
 static inline void _mutex_unlock(pthread_mutex_t *lock, const char *file, const char *func, const int line)
 {
 	_mutex_unlock_noyield(lock, file, func, line);
-	sched_yield();
+	selective_yield();
 }
 
 static inline int _mutex_trylock(pthread_mutex_t *lock, __maybe_unused const char *file, __maybe_unused const char *func, __maybe_unused const int line)
@@ -837,13 +846,13 @@ static inline void _wr_unlock_noyield(pthread_rwlock_t *lock, const char *file, 
 static inline void _rd_unlock(pthread_rwlock_t *lock, const char *file, const char *func, const int line)
 {
 	_rw_unlock(lock, file, func, line);
-	sched_yield();
+	selective_yield();
 }
 
 static inline void _wr_unlock(pthread_rwlock_t *lock, const char *file, const char *func, const int line)
 {
 	_rw_unlock(lock, file, func, line);
-	sched_yield();
+	selective_yield();
 }
 
 static inline void _mutex_init(pthread_mutex_t *lock, const char *file, const char *func, const int line)
@@ -971,7 +980,6 @@ extern char *opt_kernel_path;
 extern char *opt_socks_proxy;
 extern int opt_suggest_diff;
 extern char *cgminer_path;
-extern bool opt_fail_only;
 extern bool opt_lowmem;
 extern bool opt_autofan;
 extern bool opt_autoengine;
@@ -995,6 +1003,8 @@ extern bool opt_restart;
 extern char *opt_icarus_options;
 extern char *opt_icarus_timing;
 extern float opt_anu_freq;
+extern float opt_au3_freq;
+extern int opt_au3_volt;
 extern float opt_rock_freq;
 #endif
 extern bool opt_worktime;
@@ -1017,16 +1027,21 @@ extern char *opt_bitmine_a1_options;
 #endif
 #ifdef USE_ANT_S1
 extern char *opt_bitmain_options;
+extern char *opt_bitmain_freq;
 extern bool opt_bitmain_hwerror;
 #endif
-#ifdef USE_ANT_S2
+#if (defined(USE_ANT_S2) || defined(USE_ANT_S3))
+#ifndef USE_ANT_S3
 extern char *opt_bitmain_dev;
+#endif
 extern char *opt_bitmain_options;
+extern char *opt_bitmain_freq;
 extern bool opt_bitmain_hwerror;
 extern bool opt_bitmain_checkall;
 extern bool opt_bitmain_checkn2diff;
 extern bool opt_bitmain_beeper;
 extern bool opt_bitmain_tempoverctrl;
+extern char *opt_bitmain_voltage;
 #endif
 #ifdef USE_MINION
 extern int opt_minion_chipreport;
@@ -1086,9 +1101,7 @@ typedef bool (*sha256_func)(struct thr_info*, const unsigned char *pmidstate,
 
 extern bool fulltest(const unsigned char *hash, const unsigned char *target);
 
-extern int opt_queue;
-extern int opt_scantime;
-extern int opt_expiry;
+extern const int max_scantime;
 
 extern cglock_t control_lock;
 extern pthread_mutex_t hash_lock;
@@ -1103,9 +1116,9 @@ extern pthread_cond_t restart_cond;
 extern void clear_stratum_shares(struct pool *pool);
 extern void clear_pool_work(struct pool *pool);
 extern void set_target(unsigned char *dest_target, double diff);
-#if defined (USE_AVALON2) || defined (USE_HASHRATIO)
+#if defined (USE_AVALON2) || defined (USE_AVALON4) || defined (USE_HASHRATIO)
 bool submit_nonce2_nonce(struct thr_info *thr, struct pool *pool, struct pool *real_pool,
-			 uint32_t nonce2, uint32_t nonce);
+			 uint32_t nonce2, uint32_t nonce, uint32_t ntime);
 #endif
 extern int restart_wait(struct thr_info *thr, unsigned int mstime);
 
@@ -1210,7 +1223,6 @@ struct pool {
 
 	bool submit_fail;
 	bool idle;
-	bool lagging;
 	bool probed;
 	enum pool_enable enabled;
 	bool submit_old;
@@ -1255,6 +1267,7 @@ struct pool {
 	time_t last_share_time;
 	double last_share_diff;
 	uint64_t best_diff;
+	uint64_t bad_work;
 
 	struct cgminer_stats cgminer_stats;
 	struct cgminer_pool_stats cgminer_pool_stats;
@@ -1475,11 +1488,8 @@ extern int curses_int(const char *query);
 extern char *curses_input(const char *query);
 extern void kill_work(void);
 extern void switch_pools(struct pool *selected);
-extern void _discard_work(struct work *work);
-#define discard_work(WORK) do { \
-	_discard_work(WORK); \
-	WORK = NULL; \
-} while (0)
+extern void _discard_work(struct work **workptr, const char *file, const char *func, const int line);
+#define discard_work(WORK) _discard_work(&(WORK), __FILE__, __func__, __LINE__)
 extern void remove_pool(struct pool *pool);
 extern void write_config(FILE *fcfg);
 extern void zero_bestshare(void);
@@ -1503,11 +1513,8 @@ extern void app_restart(void);
 extern void roll_work(struct work *work);
 extern struct work *make_clone(struct work *work);
 extern void clean_work(struct work *work);
-extern void _free_work(struct work *work);
-#define free_work(WORK) do { \
-	_free_work(WORK); \
-	WORK = NULL; \
-} while (0)
+extern void _free_work(struct work **workptr, const char *file, const char *func, const int line);
+#define free_work(WORK) _free_work(&(WORK), __FILE__, __func__, __LINE__)
 extern void set_work_ntime(struct work *work, int ntime);
 extern struct work *copy_work_noffset(struct work *base_work, int noffset);
 #define copy_work(work_in) copy_work_noffset(work_in, 0)

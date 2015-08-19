@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2014 Con Kolivas <kernel@kolivas.org>
+ * Copyright 2013-2015 Con Kolivas <kernel@kolivas.org>
  * Copyright 2012-2014 Xiangfu <xiangfu@openmobilefree.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -35,10 +35,10 @@
 #include "crc.h"
 #include "usbutils.h"
 
-int opt_hashratio_fan_min = HRTO_DEFAULT_FAN_MIN;
-int opt_hashratio_fan_max = HRTO_DEFAULT_FAN_MAX;
+static int opt_hashratio_fan_min = HRTO_DEFAULT_FAN_MIN;
+static int opt_hashratio_fan_max = HRTO_DEFAULT_FAN_MAX;
 
-int opt_hashratio_freq = HRTO_DEFAULT_FREQUENCY;
+static int hashratio_freq = HRTO_DEFAULT_FREQUENCY;
 
 //static int get_fan_pwm(int temp) {
 //	int pwm;
@@ -74,23 +74,10 @@ char *set_hashratio_freq(char *arg)
 	
 	if (val < HRTO_DEFAULT_FREQUENCY_MIN || val > HRTO_DEFAULT_FREQUENCY_MAX)
 		return "Invalid value passed to hashratio-freq";
-	
-	opt_hashratio_freq = val;
+
+	hashratio_freq = val;
 	
 	return NULL;
-}
-
-static inline uint8_t rev8(uint8_t d)
-{
-	int i;
-	uint8_t out = 0;
-
-	/* (from left to right) */
-	for (i = 0; i < 8; i++)
-		if (d & (1 << i))
-		out |= (1 << (7 - i));
-
-	return out;
 }
 
 char *set_hashratio_fan(char *arg)
@@ -215,7 +202,7 @@ static int decode_pkg(struct thr_info *thr, struct hashratio_ret *ar, uint8_t *p
 					break;
 				}
 			}
-			submit_nonce2_nonce(thr, pool, real_pool, nonce2, nonce);
+			submit_nonce2_nonce(thr, pool, real_pool, nonce2, nonce, 0);
 			break;
 		case HRTO_P_STATUS:
 			applog(LOG_DEBUG, "Hashratio: HRTO_P_STATUS");
@@ -622,9 +609,7 @@ static struct cgpu_info *hashratio_detect_one(struct libusb_device *dev, struct 
 	applog(LOG_INFO, "%s%d: Found at %s", hashratio->drv->name, hashratio->device_id,
 	       hashratio->device_path);
 
-	hashratio->device_data = calloc(sizeof(struct hashratio_info), 1);
-	if (unlikely(!(hashratio->device_data)))
-		quit(1, "Failed to malloc hashratio_info");
+	hashratio->device_data = cgcalloc(sizeof(struct hashratio_info), 1);
 
 	info = hashratio->device_data;
 
@@ -635,7 +620,7 @@ static struct cgpu_info *hashratio_detect_one(struct libusb_device *dev, struct 
 	info->temp_history_index = 0;
 	info->temp_sum = 0;
 	info->temp_old = 0;
-	info->default_freq = opt_hashratio_freq;
+	info->default_freq = hashratio_freq;
 
 	return hashratio;
 }
@@ -670,22 +655,16 @@ static void copy_pool_stratum(struct hashratio_info *info, struct pool *pool)
 	free(pool_stratum->nonce1);
 	free(pool_stratum->coinbase);
 
-	align_len(&coinbase_len);
-	pool_stratum->coinbase = calloc(coinbase_len, 1);
-	if (unlikely(!pool_stratum->coinbase))
-		quit(1, "Failed to calloc pool_stratum coinbase in hashratio");
+	pool_stratum->coinbase = cgcalloc(coinbase_len, 1);
 	memcpy(pool_stratum->coinbase, pool->coinbase, coinbase_len);
-
 
 	for (i = 0; i < pool_stratum->merkles; i++)
 		free(pool_stratum->swork.merkle_bin[i]);
 	if (merkles) {
-		pool_stratum->swork.merkle_bin = realloc(pool_stratum->swork.merkle_bin,
-						 sizeof(char *) * merkles + 1);
+		pool_stratum->swork.merkle_bin = cgrealloc(pool_stratum->swork.merkle_bin,
+							   sizeof(char *) * merkles + 1);
 		for (i = 0; i < merkles; i++) {
-			pool_stratum->swork.merkle_bin[i] = malloc(32);
-			if (unlikely(!pool_stratum->swork.merkle_bin[i]))
-				quit(1, "Failed to malloc pool_stratum swork merkle_bin");
+			pool_stratum->swork.merkle_bin[i] = cgmalloc(32);
 			memcpy(pool_stratum->swork.merkle_bin[i], pool->swork.merkle_bin[i], 32);
 		}
 	}
