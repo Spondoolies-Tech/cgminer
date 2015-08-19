@@ -61,9 +61,6 @@
 #  define LOCAL_swap32le(type, var, sz)  ;
 #endif
 
-#define NTIME_OFFSET 0
-
-
 static inline void swap32yes(void *out, const void *in, size_t sz)
 {
     size_t swapcounter;
@@ -118,7 +115,7 @@ static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cg
           );
     LOCAL_swap32le(uint8_t, bytes, 2)
         swap32yes(converted, bytes, 2);
-    job->timestamp  = ntohl(converted[0]+NTIME_OFFSET);
+    job->timestamp  = ntohl(converted[0]);
     job->difficulty = ntohl(converted[1]);
     memcpy(job->header_bin, pool->header_bin, sizeof(job->header_bin));
     /*
@@ -148,7 +145,6 @@ static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cg
         free(target_str);
     }
     job->ntime_limit = NTIME_LIMIT; 
-//    job->ntime_offset = NTIME_OFFSET; //? not sure we need it
     job->resr1 = 0;
     job->coinbase_len = pool->coinbase_len;
     memcpy(job->coinbase, pool->coinbase, job->coinbase_len);

@@ -55,8 +55,7 @@ typedef struct {
     uint32_t difficulty;
     uint32_t timestamp;
     uint8_t  leading_zeroes;
-    uint16_t  ntime_limit; //? not sure we need it
-//    uint8_t  ntime_offset; //? not sure we need it
+    uint16_t ntime_limit;
     uint8_t  resr1;
     uint32_t coinbase_len; // in bytes
     uint8_t  coinbase[SPOND_MAX_COINBASE_LEN];
