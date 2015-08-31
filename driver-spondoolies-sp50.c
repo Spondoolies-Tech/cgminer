@@ -33,11 +33,6 @@
 #include <math.h>
 
 #include "config.h"
-
-#ifdef WIN32
-#include <windows.h>
-#endif
-
 #include "compat.h"
 #include "miner.h"
 #include "driver-spondoolies-sp50-p.h"
@@ -54,12 +49,6 @@
             ##args                                    \
         );                                            \
     } while (0)
-
-#ifdef WORDS_BIGENDIAN
-#  define LOCAL_swap32le(type, var, sz)  LOCAL_swap32(type, var, sz)
-#else
-#  define LOCAL_swap32le(type, var, sz)  ;
-#endif
 
 static inline void swap32yes(void *out, const void *in, size_t sz)
 {
@@ -113,8 +102,7 @@ static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cg
             pool->header_bin + 4 /*bbversion*/ + 32 /*prev_hash*/ + 32 /*blank_merkle*/,
             4 /*ntime*/ + 4 /*nbits*/
           );
-    LOCAL_swap32le(uint8_t, bytes, 2)
-        swap32yes(converted, bytes, 2);
+    swap32yes(converted, bytes, 2);
     job->timestamp  = ntohl(converted[0]);
     job->difficulty = ntohl(converted[1]);
     memcpy(job->header_bin, pool->header_bin, sizeof(job->header_bin));
@@ -130,7 +118,6 @@ static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cg
     target_swap[31] |= 0x01;
     job->leading_zeroes = 0;
     int pos = 0;
-    printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
     while (((target_swap[pos / 8] >> (7 - (pos % 8))) & 0x1) == 0x0) {
         job->leading_zeroes++;
         pos++;
@@ -167,7 +154,6 @@ static void spondoolies_detect_sp50(__maybe_unused bool hotplug)
     struct device_drv *drv = &sp50_drv;
     struct spond_adapter *device;
     int i;
-    printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
     assert(cgpu);
     cgpu->drv = drv;
     cgpu->deven = DEV_ENABLED;
@@ -198,7 +184,6 @@ static void spondoolies_detect_sp50(__maybe_unused bool hotplug)
 
 static int polling_and_return_number_of_wins(struct thr_info *thr)
 {
-    //    printf("########### %d\n", __LINE__);
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
     /*
@@ -226,7 +211,6 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
         case pxgate_MESSAGE_TYPE_RSP_NODATA:
             {
                 free(message);
-                //printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
                 return 0;
             }
         case pxgate_MESSAGE_TYPE_RSP_DATA:
@@ -245,7 +229,6 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                     // CHECKING JOB VALIDITY
                     if (job_id < 0 || rsp->rsp[i].work_id_in_sw > MAX_SW_JOB_INDEX_IN_MINERGATE) {
                         free(message);
-                        printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
                         return 0;
                     }
                     cg_rlock(&(device->my_jobs[job_id].data_lock));
@@ -274,14 +257,8 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                         cg_runlock(&(device->my_jobs[job_id].data_lock));
                         return 0;
                     }
-                    // JOB VALIDITY PASSED
-                        printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
                     pool = &device->my_jobs[job_id].pool;
-                        printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
                     real_pool = pools[device->my_jobs[job_id].pool.pool_no];
-                        printf("\n\n############ [%s:%d](%s)   real_pool[%p] pool_no[%d]\n\n",
-                                __FILE__, __LINE__, __FUNCTION__,
-                                real_pool, device->my_jobs[job_id].pool.pool_no );
                     if (submit_nonce2_nonce(
                                 thr,
                                 pool,
@@ -289,7 +266,7 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                                 rsp->rsp[i].nonce2,
                                 ntohl(rsp->rsp[i].winner_nonce),
                                 rsp->rsp[i].ntime_offset)){
-                        printf("ERROR NONCE::: %s: win [%d/%d] enonce[%016llx] nonce [%08x], ntime_offset %x",
+                        SPONDLOG(LOG_ERR, "nonce::: %s: win [%d/%d] enonce[%016llx] nonce [%08x], ntime_offset %x",
                                 sp50_drv.dname,
                                 i+1,
                                 results,
@@ -298,12 +275,9 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                                 rsp->rsp[i].ntime_offset
                               );
                     }
-                        printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
                     cg_runlock(&(device->my_jobs[job_id].data_lock));
                 }
-                printf("########### %d\n", __LINE__);
                 free(message);
-                //                printf("########### DONE %d\n", __LINE__);
                 return results;
             };
         default:
@@ -362,7 +336,6 @@ static void spond_drop_job(struct spond_adapter *device, uint32_t job_id_index)
 static void spond_flush_work_sp50(struct cgpu_info *cgpu)
 {
     struct spond_adapter *device = cgpu->device_data;
-    printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
     pthread_mutex_lock(&device->lock);
     int i;
     device->drop_old_jobs = 1;
