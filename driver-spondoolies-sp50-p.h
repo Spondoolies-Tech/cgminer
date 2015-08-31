@@ -40,7 +40,7 @@ typedef enum {
     pxgate_MESSAGE_TYPE_JOB_REQ_ACK  = 0xCAFE4444,
     pxgate_MESSAGE_TYPE_RSP_REQ      = 0xCAFE5555,
     pxgate_MESSAGE_TYPE_RSP_NODATA   = 0xCAFE6666,
-    pxgate_MESSAGE_TYPE_RSP_DATA     = 0xCAFE7777,    
+    pxgate_MESSAGE_TYPE_RSP_DATA     = 0xCAFE7777,
 } pxgate_MESSAGE_TYPE;
 
 #define SPOND_MAX_COINBASE_LEN      1024
@@ -51,7 +51,7 @@ typedef enum {
 
 
 typedef struct {
-    uint32_t work_id_in_sw; //? not sure we need it
+    uint32_t work_id_in_sw;
     uint32_t difficulty;
     uint32_t timestamp;
     uint8_t  leading_zeroes;
@@ -67,21 +67,18 @@ typedef struct {
     // timestamp
 } pxgate_do_mrkljob_req;
 
-#define MAX_REQUESTS 1
-
-
 #define MAX_RESPONDS 100
 
 typedef struct {
-  uint32_t work_id_in_sw;
-  uint32_t mrkle_root; // to validate
-  uint32_t winner_nonce;  
-    uint8_t  nonce2_len;
-    uint64_t nonce2;        // winner enonce as well
-  uint16_t  ntime_offset;
-  uint8_t res; // 0 = done, 1 = overflow, 2 = dropped bist
-    uint8_t  resrv1;
-  uint8_t resrv2; 
+    uint32_t    work_id_in_sw;
+    uint32_t    mrkle_root; // to validate
+    uint32_t    winner_nonce;
+    uint8_t     nonce2_len;
+    uint64_t    nonce2; // winner enonce as well
+    uint16_t    ntime_offset;
+    uint8_t     res; // 0 = done, 1 = overflow, 2 = dropped bist
+    uint8_t     resrv1;
+    uint8_t     resrv2;
 } pxgate_do_job_rsp;
 
 typedef struct {
@@ -91,22 +88,22 @@ typedef struct {
 } pxgate_packet_header;
 
 typedef struct {
-    pxgate_packet_header header;
+    pxgate_packet_header    header;
     uint16_t                protocol_version;
-	uint8_t mask; // 0x01 = first request, 0x2 = drop old work
-    pxgate_do_mrkljob_req    req; // array of requests
+    uint8_t                 mask; // 0x01 = first request, 0x2 = drop old work
+    pxgate_do_mrkljob_req   req; // array of requests
 } pxgate_req_packet;
 
 typedef struct {
-    pxgate_packet_header header;
-    uint8_t                 gh_div_10_rate; // == 
-  uint16_t rsp_count;
-    pxgate_do_job_rsp    rsp[MAX_RESPONDS]; // array of responce
+    pxgate_packet_header    header;
+    uint8_t                 gh_div_10_rate;
+    uint16_t                rsp_count;
+    pxgate_do_job_rsp       rsp[MAX_RESPONDS]; // array of responce
 } pxgate_rsp_packet;
 
 typedef struct {
-    pxgate_packet_header header;
-    uint32_t                 rsv[4];
+    pxgate_packet_header    header;
+    uint32_t                rsv[4];
 } pxgate_gen_packet;
 
 
