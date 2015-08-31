@@ -10,8 +10,8 @@
  *
  * Note that changing this SW will void your miners guaranty
  */
-#ifndef __MG_PROTO_PARSER_SP60_H__
-#define __MG_PROTO_PARSER_SP60_H__
+#ifndef __MG_PROTO_PARSER_SP50_H__
+#define __MG_PROTO_PARSER_SP50_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,4 +113,4 @@ typedef struct {
 int     do_read(int fd, void *buf, int len);
 int     do_write(int fd, const void *buf, int len);
 int     do_read_packet(int fd, void* buf, int len);
-#endif //__MG_PROTO_PARSER_SP60_H__
+#endif //__MG_PROTO_PARSER_SP50_H__

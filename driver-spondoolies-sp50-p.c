@@ -19,7 +19,7 @@
 #include <unistd.h>
 
 //#include "miner.h"
-#include "driver-spondoolies-sp60-p.h"
+#include "driver-spondoolies-sp50-p.h"
 #include "assert.h"
 
 int do_read(int fd, void *buf, int len) {

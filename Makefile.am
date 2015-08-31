@@ -130,9 +130,9 @@ cgminer_SOURCES += driver-spondoolies-sp30.c driver-spondoolies-sp30.h \
 		   driver-spondoolies-sp30-p.c driver-spondoolies-sp30-p.h
 endif
 
-if HAS_SP60
-cgminer_SOURCES += driver-spondoolies-sp60.c driver-spondoolies-sp60.h \
-		   driver-spondoolies-sp60-p.c driver-spondoolies-sp60-p.h
+if HAS_SP50
+cgminer_SOURCES += driver-spondoolies-sp50.c driver-spondoolies-sp50.h \
+		   driver-spondoolies-sp50-p.c driver-spondoolies-sp50-p.h
 endif
 
 if HAS_BAB

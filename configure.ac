@@ -437,18 +437,18 @@ fi
 AM_CONDITIONAL([HAS_SP30], [test x$sp30 = xyes])
 
 
-sp60="no"
+sp50="no"
 
-AC_ARG_ENABLE([sp60],
-	[AC_HELP_STRING([--enable-sp60],[Compile support for Spondoolies SP60 STANDALONE(default disabled)])],
-	[sp60=$enableval]
+AC_ARG_ENABLE([sp50],
+	[AC_HELP_STRING([--enable-sp50],[Compile support for Spondoolies SP50 STANDALONE(default disabled)])],
+	[sp50=$enableval]
 	)
-if test "x$sp60" = xyes; then
-	AC_DEFINE([USE_SP60], [1], [Defined to 1 if SP60 support is wanted])
+if test "x$sp50" = xyes; then
+	AC_DEFINE([USE_SP50], [1], [Defined to 1 if SP50 support is wanted])
 	drivercount=x$drivercount
 	standalone="yes"
 fi
-AM_CONDITIONAL([HAS_SP60], [test x$sp60 = xyes])
+AM_CONDITIONAL([HAS_SP50], [test x$sp50 = xyes])
 
 
 forcecombo="no"
@@ -499,7 +499,7 @@ else
 	want_libbitfury=false
 fi
 
-if test x$avalon2$avalon4$hashratio$sp60 != xnonono; then
+if test x$avalon2$avalon4$hashratio$sp50 != xnonono; then
 	want_crc16=true
 else
 	want_crc16=false
@@ -817,10 +817,10 @@ else
 fi
 
 
-if test "x$sp60" = xyes; then
-	echo "  Spond-sp60.ASICs.....: Enabled"
+if test "x$sp50" = xyes; then
+	echo "  Spond-sp50.ASICs.....: Enabled"
 else
-	echo "  Spond-sp60.ASICs.....: Disabled"
+	echo "  Spond-sp50.ASICs.....: Disabled"
 fi
 
 
@@ -873,7 +873,7 @@ else
 fi
 
 #Add any new device to this, along with a no on the end of the test
-if test "x$avalon$avalon2$avalon4$bab$bflsc$bitforce$bitfury$blockerupter$hashfast$hashratio$icarus$klondike$knc$modminer$drillbit$minion$cointerra$bitmine_A1$ants1$ants2$ants3$sp10$sp30$sp60" = xnononononononononononononononononononononononono; then
+if test "x$avalon$avalon2$avalon4$bab$bflsc$bitforce$bitfury$blockerupter$hashfast$hashratio$icarus$klondike$knc$modminer$drillbit$minion$cointerra$bitmine_A1$ants1$ants2$ants3$sp10$sp30$sp50" = xnononononononononononononononononononononononono; then
 	echo
 	AC_MSG_ERROR([No mining devices configured in])
 	echo

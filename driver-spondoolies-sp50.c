@@ -40,15 +40,15 @@
 
 #include "compat.h"
 #include "miner.h"
-#include "driver-spondoolies-sp60-p.h"
-#include "driver-spondoolies-sp60.h"
+#include "driver-spondoolies-sp50-p.h"
+#include "driver-spondoolies-sp50.h"
 #include "crc.h"
 
 #define SPONDLOG(LOGLEVEL, fmt, args...)              \
     do {                                              \
         applog(LOGLEVEL,                              \
             "[%s:%d(%s)] "fmt,                        \
-            sp60_drv.dname,                           \
+            sp50_drv.dname,                           \
             __LINE__,                                 \
             __FUNCTION__,                             \
             ##args                                    \
@@ -150,7 +150,7 @@ static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cg
     memcpy(job->coinbase, pool->coinbase, job->coinbase_len);
     job->nonce2_offset = pool->nonce2_offset;
     if (pool->n2size < 8) {
-        printf("ERROR: NONCE2 TOO SMALL (%d)!\n", pool->n2size);
+        applog(LOG_ERR, "NONCE2 TOO SMALL (%d)!\n", pool->n2size);
         passert(0);
     }
     job->merkles = pool->merkles;
@@ -161,10 +161,10 @@ static void fill_pxgate_request(pxgate_do_mrkljob_req* job, struct cgpu_info *cg
     cg_runlock(&device->my_jobs[job_id].data_lock);
 }
 
-static void spondoolies_detect_sp60(__maybe_unused bool hotplug)
+static void spondoolies_detect_sp50(__maybe_unused bool hotplug)
 {
     struct cgpu_info *cgpu = calloc(1, sizeof(struct cgpu_info));
-    struct device_drv *drv = &sp60_drv;
+    struct device_drv *drv = &sp50_drv;
     struct spond_adapter *device;
     int i;
     printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
@@ -216,7 +216,7 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
     void *message = calloc(1, sizeof(pxgate_rsp_packet));
     int size =  do_read_packet(device->socket_fd, message, sizeof(pxgate_rsp_packet));
     if (size == 0) {
-        quit(1, "%s: Ooops returned bad packet from cgminer", sp60_drv.dname);
+        quit(1, "%s: Ooops returned bad packet from cgminer", sp50_drv.dname);
         free(message);
         return 0;
     }
@@ -290,7 +290,7 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
                                 ntohl(rsp->rsp[i].winner_nonce),
                                 rsp->rsp[i].ntime_offset)){
                         printf("ERROR NONCE::: %s: win [%d/%d] enonce[%016llx] nonce [%08x], ntime_offset %x",
-                                sp60_drv.dname,
+                                sp50_drv.dname,
                                 i+1,
                                 results,
                                 rsp->rsp[i].nonce2,
@@ -318,7 +318,7 @@ static int polling_and_return_number_of_wins(struct thr_info *thr)
 
 // Return completed work to submit_nonce() and work_completed()
 // struct timeval last_force_queue = {0};
-static int64_t spond_scanhash_sp60(struct thr_info *thr)
+static int64_t spond_scanhash_sp50(struct thr_info *thr)
 {
     struct cgpu_info *spondoolies = thr->cgpu;
     struct spond_adapter *device = spondoolies->device_data;
@@ -359,7 +359,7 @@ static void spond_drop_job(struct spond_adapter *device, uint32_t job_id_index)
     cg_wunlock(&(device->my_jobs[job_id_index].data_lock));
 }
 
-static void spond_flush_work_sp60(struct cgpu_info *cgpu)
+static void spond_flush_work_sp50(struct cgpu_info *cgpu)
 {
     struct spond_adapter *device = cgpu->device_data;
     printf("############ [%s:%d](%s)\n", __FILE__, __LINE__, __FUNCTION__);
@@ -421,7 +421,7 @@ static void copy_pool_stratum(struct spond_adapter* spond, struct pool *pool)
     cg_wunlock(&(spond->my_jobs[get_array_id(spond->current_job_id)].data_lock));
 }
 
-static void spondoolies_update_work_sp60(struct cgpu_info *cgpu)
+static void spondoolies_update_work_sp50(struct cgpu_info *cgpu)
 {
     struct spond_adapter *device = cgpu->device_data;
 	struct thr_info *thr = cgpu->thr[0];
@@ -439,7 +439,7 @@ static void spondoolies_update_work_sp60(struct cgpu_info *cgpu)
     // lets check pool job parameters
     pool = current_pool();
     if (!pool->has_stratum) {
-        quit(1, "%s: Miner Manager have to use stratum pool", sp60_drv.dname);
+        quit(1, "%s: Miner Manager have to use stratum pool", sp50_drv.dname);
     }
     if (pool->coinbase_len > SPOND_MAX_COINBASE_LEN) {
         SPONDLOG(LOG_ERR, "Miner Manager pool coinbase length[%d] have to less then %d",
@@ -488,7 +488,7 @@ static void spondoolies_update_work_sp60(struct cgpu_info *cgpu)
     uint32_t size = 0;
     if ((size = do_read_packet(device->socket_fd, &rsp_packet, sizeof(rsp_packet))) != sizeof(rsp_packet)) {
         quit(1, "%s: critical error, packet sent from miner is bad received size[%u] expected [%u], quiting...",
-                sp60_drv.dname,
+                sp50_drv.dname,
                 size,
                 sizeof(rsp_packet)
             );
@@ -510,13 +510,15 @@ static void spondoolies_update_work_sp60(struct cgpu_info *cgpu)
     device->current_job_id = (device->current_job_id++) % MAX_SW_JOB_INDEX_IN_MINERGATE;
 }
 
-struct device_drv sp60_drv = {
-    .drv_id          = DRIVER_sp60,
-    .dname           = "sp60",
-    .name            = "S60",
-    .drv_detect      = spondoolies_detect_sp60,
+struct device_drv sp50_drv = {
+    .drv_id          = DRIVER_sp50,
+    .dname           = "sp50",
+    .name            = "S50",
+	.min_diff        = 16,
+	.max_diff        = 1024.0, // Limit max diff to get some nonces back regardless
+    .drv_detect      = spondoolies_detect_sp50,
     .hash_work       = hash_driver_work,
-    .scanwork        = spond_scanhash_sp60,
-    .flush_work      = spond_flush_work_sp60, // TODO: other drivers using same function as update_work
-    .update_work     = spondoolies_update_work_sp60,
+    .scanwork        = spond_scanhash_sp50,
+    .flush_work      = spond_flush_work_sp50, // TODO: other drivers using same function as update_work
+    .update_work     = spondoolies_update_work_sp50,
 };

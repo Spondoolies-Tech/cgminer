@@ -9,11 +9,11 @@
  * any later version.  See COPYING for more details.
  */
 
-#ifndef __DRIVER_SPONDOOLIES_SP60_H__
-#define __DRIVER_SPONDOOLIES_SP60_H__
+#ifndef __DRIVER_SPONDOOLIES_SP50_H__
+#define __DRIVER_SPONDOOLIES_SP50_H__
 
 #include "miner.h"
-#include "driver-spondoolies-sp60-p.h"
+#include "driver-spondoolies-sp50-p.h"
 
 #define MAX_JOBS_IN_MINERGATE            50 // calculated from asic capabilties
 #define MAX_SW_JOB_INDEX_IN_MINERGATE    (MAX_JOBS_IN_MINERGATE<<4)
@@ -35,4 +35,4 @@ struct spond_adapter {
 	time_t              last_stats;
 };
 
-#endif //__DRIVER_SPONDOOLIES_SP60_H__
+#endif //__DRIVER_SPONDOOLIES_SP50_H__
